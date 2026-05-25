@@ -440,7 +440,7 @@ function ResultsDashboard(props: {
             </div>
             {props.saveStatus.message && (
               <p className={cn(
-                "rounded-md p-3 text-sm font-medium",
+                "whitespace-pre-wrap break-words rounded-md p-3 text-sm font-medium",
                 props.saveStatus.tone === "success" && "bg-teal-50 text-teal-800",
                 props.saveStatus.tone === "error" && "bg-rose-50 text-rose-700",
                 props.saveStatus.tone === "idle" && "bg-slate-50 text-slate-600"

@@ -26,6 +26,35 @@ export type AssessmentSubmission = {
   executiveSummary: string;
 };
 
+type MomentumOSSubmissionRow = {
+  name: string;
+  email: string;
+  company: string;
+  role: string;
+  total_score: number;
+  maturity_level: string;
+  lowest_scoring_category: string;
+  strategy_score: number;
+  activation_score: number;
+  cosell_score: number;
+  economics_score: number;
+  velocity_score: number;
+  raw_scores: Record<number, number>;
+  metadata: {
+    submitted_at: string;
+    email_capture: string;
+    lowest_category_key: CategoryKey;
+    lowest_category_name: string;
+    lowest_category_score: number;
+    highest_category_key: CategoryKey;
+    highest_category_name: string;
+    highest_category_score: number;
+    primary_constraint: string;
+    category_scores: AssessmentSubmission["categoryScores"];
+    executive_summary: string;
+  };
+};
+
 export async function saveAssessmentSubmission(submission: AssessmentSubmission) {
   if (!supabase) {
     return {
@@ -40,7 +69,7 @@ export async function saveAssessmentSubmission(submission: AssessmentSubmission)
 
   const submittedAt = new Date().toISOString();
 
-  const { error } = await supabase.from("momentumos_beta_submissions").insert({
+  const insertPayload: MomentumOSSubmissionRow = {
     name: submission.intake.name,
     email: submission.intake.email,
     company: submission.intake.company,
@@ -67,14 +96,25 @@ export async function saveAssessmentSubmission(submission: AssessmentSubmission)
       category_scores: submission.categoryScores,
       executive_summary: submission.executiveSummary
     }
-  });
+  };
+
+  const { error } = await supabase.from("momentumos_beta_submissions").insert(insertPayload);
 
   if (error) {
-    const detail = [error.message, error.details, error.hint, error.code ? `Code: ${error.code}` : ""]
-      .filter(Boolean)
-      .join(" ");
+    const fullError = {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      inserted_columns: Object.keys(insertPayload)
+    };
 
-    return { ok: false, message: `Supabase insert failed: ${detail}` };
+    console.error("Supabase assessment insert failed", fullError);
+
+    return {
+      ok: false,
+      message: `Supabase insert failed:\n${JSON.stringify(fullError, null, 2)}`
+    };
   }
 
   return { ok: true, message: "Assessment saved to Supabase." };
