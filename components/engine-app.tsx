@@ -36,7 +36,8 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { categories, constraints, defaultPlannerTasks, questions, scoreLabels } from "@/lib/content";
 import { getCategoryScores, getExecutiveSummary, getExtremes, getMaturityLevel, getRecommendations, getTotalScore } from "@/lib/scoring";
-import type { AppState, CoSellEntry, RevenueMetrics, StrategySnapshot } from "@/lib/types";
+import { saveAssessmentSubmission } from "@/lib/supabase/submissions";
+import type { AppState, CoSellEntry, RevenueMetrics, StrategySnapshot, UserIntake } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const defaultScores = Object.fromEntries(questions.map((question) => [question.id, 3]));
@@ -66,6 +67,13 @@ const defaultMetrics: RevenueMetrics = {
 };
 
 const initialState: AppState = {
+  intake: {
+    name: "",
+    email: "",
+    company: "",
+    role: ""
+  },
+  intakeComplete: false,
   scores: defaultScores,
   primaryConstraint: "Activation Bottleneck",
   email: "",
@@ -105,6 +113,10 @@ export function EngineApp() {
   const [started, setStarted] = useState(false);
   const [activeModule, setActiveModule] = useState<ModuleId>("diagnostic");
   const [state, setState] = useState<AppState>(initialState);
+  const [saveStatus, setSaveStatus] = useState<{ tone: "idle" | "success" | "error"; message: string }>({
+    tone: "idle",
+    message: ""
+  });
 
   useEffect(() => {
     const stored = window.localStorage.getItem("555-engine-state");
@@ -130,6 +142,39 @@ export function EngineApp() {
 
   const updateState = (patch: Partial<AppState>) => setState((current) => ({ ...current, ...patch }));
 
+  const completeIntake = (intake: UserIntake) => {
+    updateState({ intake, intakeComplete: true, email: intake.email });
+  };
+
+  const saveAssessment = async () => {
+    setSaveStatus({ tone: "idle", message: "Saving assessment..." });
+    const result = await saveAssessmentSubmission({
+      intake: state.intake,
+      emailCapture: state.email,
+      totalScore,
+      maturityLevel,
+      lowestCategory: {
+        key: lowest.key,
+        name: lowest.name,
+        score: lowest.score
+      },
+      highestCategory: {
+        key: highest.key,
+        name: highest.name,
+        score: highest.score
+      },
+      primaryConstraint: state.primaryConstraint,
+      categoryScores: categoryScores.map((category) => ({
+        key: category.key,
+        name: category.name,
+        score: category.score
+      })),
+      scores: state.scores,
+      executiveSummary
+    });
+    setSaveStatus({ tone: result.ok ? "success" : "error", message: result.message });
+  };
+
   const exportPdf = () => {
     // TODO: Replace browser print with server-side PDF generation or jsPDF once brand templates are final.
     window.print();
@@ -153,6 +198,14 @@ export function EngineApp() {
     return (
       <main className="min-h-screen bg-white">
         <Landing onStart={() => setStarted(true)} />
+      </main>
+    );
+  }
+
+  if (!state.intakeComplete) {
+    return (
+      <main className="min-h-screen bg-slate-50">
+        <IntakeForm initialIntake={state.intake} onSubmit={completeIntake} />
       </main>
     );
   }
@@ -211,6 +264,9 @@ export function EngineApp() {
             setPrimaryConstraint={(primaryConstraint) => updateState({ primaryConstraint })}
             email={state.email}
             setEmail={(email) => updateState({ email })}
+            onSaveAssessment={saveAssessment}
+            saveStatus={saveStatus}
+            intake={state.intake}
           />
 
           {activeModule === "diagnostic" && <Diagnostic scores={state.scores} setScores={(scores) => updateState({ scores })} />}
@@ -281,6 +337,50 @@ function Landing({ onStart }: { onStart: () => void }) {
   );
 }
 
+function IntakeForm({ initialIntake, onSubmit }: { initialIntake: UserIntake; onSubmit: (intake: UserIntake) => void }) {
+  const [intake, setIntake] = useState<UserIntake>(initialIntake);
+  const [error, setError] = useState("");
+  const update = (key: keyof UserIntake, value: string) => setIntake((current) => ({ ...current, [key]: value }));
+
+  const submit = () => {
+    if (!intake.name.trim() || !intake.email.trim() || !intake.company.trim() || !intake.role.trim()) {
+      setError("Please complete all fields before starting the assessment.");
+      return;
+    }
+
+    setError("");
+    onSubmit(intake);
+  };
+
+  return (
+    <section className="mx-auto grid min-h-screen max-w-6xl items-center gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8">
+      <div>
+        <p className="mb-4 text-xs font-bold uppercase tracking-[0.26em] text-teal-700">Beta access</p>
+        <h1 className="text-balance text-4xl font-semibold tracking-normal text-navy sm:text-5xl">Tell us where to send your ecosystem benchmark.</h1>
+        <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">
+          Capture your details once, then complete the 5/5/5 diagnostic. Your assessment score and bottleneck data can be saved to Supabase for the beta analytics workspace.
+        </p>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Start your ecosystem assessment</CardTitle>
+          <CardDescription>These fields power beta follow-up, reporting, and future admin analytics.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Label>Name<Input value={intake.name} onChange={(event) => update("name", event.target.value)} placeholder="Alex Morgan" /></Label>
+            <Label>Email<Input type="email" value={intake.email} onChange={(event) => update("email", event.target.value)} placeholder="alex@company.com" /></Label>
+            <Label>Company<Input value={intake.company} onChange={(event) => update("company", event.target.value)} placeholder="Company name" /></Label>
+            <Label>Role<Input value={intake.role} onChange={(event) => update("role", event.target.value)} placeholder="VP Partnerships" /></Label>
+          </div>
+          {error && <p className="rounded-md bg-rose-50 p-3 text-sm font-medium text-rose-700">{error}</p>}
+          <Button size="lg" onClick={submit}>Continue to diagnostic <ArrowRight size={18} /></Button>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
 function ResultsDashboard(props: {
   totalScore: number;
   maturityLevel: string;
@@ -292,6 +392,9 @@ function ResultsDashboard(props: {
   setPrimaryConstraint: (value: string) => void;
   email: string;
   setEmail: (value: string) => void;
+  onSaveAssessment: () => Promise<void>;
+  saveStatus: { tone: "idle" | "success" | "error"; message: string };
+  intake: UserIntake;
 }) {
   return (
     <div className="grid gap-6">
@@ -328,6 +431,23 @@ function ResultsDashboard(props: {
               <Label>Primary ecosystem constraint<Select value={props.primaryConstraint} onChange={(event) => props.setPrimaryConstraint(event.target.value)}>{constraints.map((constraint) => <option key={constraint}>{constraint}</option>)}</Select></Label>
               <Label>Email capture<Input type="email" value={props.email} onChange={(event) => props.setEmail(event.target.value)} placeholder="leader@company.com" /></Label>
             </div>
+            <div className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-navy">{props.intake.name || "Beta participant"}</p>
+                <p className="text-sm text-slate-600">{props.intake.company} {props.intake.role ? `- ${props.intake.role}` : ""}</p>
+              </div>
+              <Button onClick={props.onSaveAssessment}>Save assessment</Button>
+            </div>
+            {props.saveStatus.message && (
+              <p className={cn(
+                "rounded-md p-3 text-sm font-medium",
+                props.saveStatus.tone === "success" && "bg-teal-50 text-teal-800",
+                props.saveStatus.tone === "error" && "bg-rose-50 text-rose-700",
+                props.saveStatus.tone === "idle" && "bg-slate-50 text-slate-600"
+              )}>
+                {props.saveStatus.message}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

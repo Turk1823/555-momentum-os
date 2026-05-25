@@ -60,7 +60,16 @@ export type RevenueMetrics = {
   repeatDealRate: number;
 };
 
+export type UserIntake = {
+  name: string;
+  email: string;
+  company: string;
+  role: string;
+};
+
 export type AppState = {
+  intake: UserIntake;
+  intakeComplete: boolean;
   scores: Record<number, number>;
   primaryConstraint: string;
   email: string;
