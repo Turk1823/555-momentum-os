@@ -117,5 +117,9 @@ export async function saveAssessmentSubmission(submission: AssessmentSubmission)
     };
   }
 
-  return { ok: true, message: "Assessment saved to Supabase." };
+  return {
+    ok: true,
+    message:
+      "Assessment saved successfully.\n\nThank you for testing the 555 MomentumOS™ beta. Your results have been recorded and will help shape future ecosystem revenue benchmarks."
+  };
 }
