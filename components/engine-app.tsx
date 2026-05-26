@@ -654,7 +654,11 @@ function CortaveOptimisationNote({
     optimisation.metrics?.compressionPercentage !== undefined ? `Estimated Token Reduction %: ${optimisation.metrics.compressionPercentage}%` : ""
   ].filter(Boolean);
   const statusText =
-    optimisation.status === "failed" ? "failed — using fallback prompt" : optimisation.status;
+    optimisation.status === "failed" && optimisation.debug?.message === "missing CORTAVE_API_KEY"
+      ? "failed — missing CORTAVE_API_KEY"
+      : optimisation.status === "failed"
+        ? "failed — using fallback prompt"
+        : optimisation.status;
 
   return (
     <div className="grid gap-1 text-xs leading-5 text-teal-700">

@@ -71,27 +71,27 @@ type CortaveResponse = {
 };
 
 async function optimisePromptWithCortave(prompt: string) {
-  const cortaveUrl = process.env.CORTAVE_API_URL;
+  const cortaveUrl = process.env.CORTAVE_API_URL || "https://openrouter.ai/api/v1/chat/completions";
   const cortaveApiKey = process.env.CORTAVE_API_KEY;
 
-  if (!cortaveUrl || !cortaveApiKey) {
+  if (!cortaveApiKey) {
     console.log("Cortave response status", "skipped");
     console.log("Falling back to original prompt", {
-      reason: "Cortave is not configured."
+      reason: "Cortave status: failed - missing CORTAVE_API_KEY"
     });
 
     return {
       prompt,
       usedCortave: false,
-      status: "skipped" as CortaveStatus,
+      status: "failed" as CortaveStatus,
       metrics: null,
       debug: {
-        httpStatus: "skipped" as const,
-        message: "Cortave is not configured.",
+        endpoint: cortaveUrl,
+        message: "missing CORTAVE_API_KEY",
         topLevelKeys: [],
         optimisedPromptField: "none"
       },
-      error: "Cortave is not configured."
+      error: "missing CORTAVE_API_KEY"
     };
   }
 
@@ -105,9 +105,19 @@ async function optimisePromptWithCortave(prompt: string) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        prompt,
-        task: "optimise_prompt",
-        goal: "Compress and optimise this prompt while preserving all business context and required output sections."
+        model: process.env.CORTAVE_MODEL || "openai/gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You optimise prompts. Compress the user prompt while preserving all business context, constraints, and required output sections. Return only the optimised prompt text."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.1
       })
     });
 
