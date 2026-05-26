@@ -625,10 +625,12 @@ function CortaveOptimisationNote({
     optimisation.metrics?.optimisedTokens !== undefined ? `Optimised Prompt Size: ${optimisation.metrics.optimisedTokens}` : "",
     optimisation.metrics?.compressionPercentage !== undefined ? `Estimated Token Reduction %: ${optimisation.metrics.compressionPercentage}%` : ""
   ].filter(Boolean);
+  const statusText =
+    optimisation.status === "failed" ? "failed — using fallback prompt" : optimisation.status;
 
   return (
     <div className="grid gap-1 text-xs leading-5 text-teal-700">
-      <p>Cortave status: {optimisation.status}</p>
+      <p>Cortave status: {statusText}</p>
       {optimisation.optimised && (
         <p>
           AI generation optimised via Cortave.

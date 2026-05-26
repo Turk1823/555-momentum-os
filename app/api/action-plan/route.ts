@@ -58,6 +58,7 @@ async function optimisePromptWithCortave(prompt: string) {
   const cortaveApiKey = process.env.CORTAVE_API_KEY;
 
   if (!cortaveUrl || !cortaveApiKey) {
+    console.log("Cortave response status", "skipped");
     console.log("Falling back to original prompt", {
       reason: "Cortave is not configured."
     });
@@ -207,6 +208,9 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
 `;
 
   const cortaveResult = await optimisePromptWithCortave(prompt);
+  console.log("Cortave optimisation complete before OpenAI", {
+    cortaveStatus: cortaveResult.status
+  });
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
