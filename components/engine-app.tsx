@@ -123,6 +123,15 @@ export function EngineApp() {
     message: ""
   });
   const [actionPlan, setActionPlan] = useState("");
+  const [cortaveOptimisation, setCortaveOptimisation] = useState<{
+    optimised: boolean;
+    metrics?: {
+      originalTokens?: number;
+      optimisedTokens?: number;
+      tokenSavings?: number;
+      compressionPercentage?: number;
+    } | null;
+  } | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("555-engine-state");
@@ -155,6 +164,7 @@ export function EngineApp() {
   const saveAssessment = async () => {
     setSaveStatus({ tone: "idle", message: "Saving assessment..." });
     setActionPlan("");
+    setCortaveOptimisation(null);
     setActionPlanStatus({ tone: "idle", message: "" });
     const result = await saveAssessmentSubmission({
       intake: state.intake,
@@ -209,13 +219,26 @@ export function EngineApp() {
         })
       });
 
-      const data = (await response.json()) as { actionPlan?: string; error?: string };
+      const data = (await response.json()) as {
+        actionPlan?: string;
+        error?: string;
+        cortave?: {
+          optimised: boolean;
+          metrics?: {
+            originalTokens?: number;
+            optimisedTokens?: number;
+            tokenSavings?: number;
+            compressionPercentage?: number;
+          } | null;
+        };
+      };
 
       if (!response.ok) {
         throw new Error(data.error || "Action plan generation failed.");
       }
 
       setActionPlan(data.actionPlan || "");
+      setCortaveOptimisation(data.cortave || null);
       setActionPlanStatus({ tone: "success", message: "Action plan generated." });
     } catch (error) {
       setActionPlanStatus({
@@ -320,6 +343,7 @@ export function EngineApp() {
             onGenerateActionPlan={generateActionPlan}
             actionPlanStatus={actionPlanStatus}
             actionPlan={actionPlan}
+            cortaveOptimisation={cortaveOptimisation}
           />
 
           {activeModule === "diagnostic" && <Diagnostic scores={state.scores} setScores={(scores) => updateState({ scores })} />}
@@ -451,6 +475,15 @@ function ResultsDashboard(props: {
   onGenerateActionPlan: () => Promise<void>;
   actionPlanStatus: { tone: "idle" | "success" | "error"; message: string };
   actionPlan: string;
+  cortaveOptimisation: {
+    optimised: boolean;
+    metrics?: {
+      originalTokens?: number;
+      optimisedTokens?: number;
+      tokenSavings?: number;
+      compressionPercentage?: number;
+    } | null;
+  } | null;
 }) {
   const canGenerateActionPlan = props.saveStatus.tone === "success";
   const isGeneratingActionPlan = props.actionPlanStatus.tone === "idle" && Boolean(props.actionPlanStatus.message);
@@ -524,9 +557,12 @@ function ResultsDashboard(props: {
                   </p>
                 )}
                 {props.actionPlan && (
-                  <div className="whitespace-pre-wrap rounded-lg border border-teal-100 bg-white p-4 text-sm leading-6 text-slate-700">
-                    {props.actionPlan}
-                  </div>
+                  <>
+                    <div className="whitespace-pre-wrap rounded-lg border border-teal-100 bg-white p-4 text-sm leading-6 text-slate-700">
+                      {props.actionPlan}
+                    </div>
+                    <CortaveOptimisationNote optimisation={props.cortaveOptimisation} />
+                  </>
                 )}
               </div>
             )}
@@ -552,6 +588,36 @@ function ResultsDashboard(props: {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function CortaveOptimisationNote({
+  optimisation
+}: {
+  optimisation: {
+    optimised: boolean;
+    metrics?: {
+      originalTokens?: number;
+      optimisedTokens?: number;
+      tokenSavings?: number;
+      compressionPercentage?: number;
+    } | null;
+  } | null;
+}) {
+  if (!optimisation?.optimised) return null;
+
+  const metrics = [
+    optimisation.metrics?.originalTokens !== undefined ? `Original tokens: ${optimisation.metrics.originalTokens}` : "",
+    optimisation.metrics?.optimisedTokens !== undefined ? `Optimised tokens: ${optimisation.metrics.optimisedTokens}` : "",
+    optimisation.metrics?.tokenSavings !== undefined ? `Token savings: ${optimisation.metrics.tokenSavings}` : "",
+    optimisation.metrics?.compressionPercentage !== undefined ? `Compression: ${optimisation.metrics.compressionPercentage}%` : ""
+  ].filter(Boolean);
+
+  return (
+    <p className="text-xs leading-5 text-teal-700">
+      AI generation optimised via Cortave.
+      {metrics.length > 0 ? ` ${metrics.join(" | ")}` : ""}
+    </p>
   );
 }
 

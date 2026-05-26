@@ -15,6 +15,122 @@ type ActionPlanRequest = {
   }>;
 };
 
+type CortaveMetrics = {
+  originalTokens?: number;
+  optimisedTokens?: number;
+  tokenSavings?: number;
+  compressionPercentage?: number;
+};
+
+type CortaveResponse = {
+  optimizedPrompt?: string;
+  optimisedPrompt?: string;
+  prompt?: string;
+  data?: {
+    optimizedPrompt?: string;
+    optimisedPrompt?: string;
+    prompt?: string;
+    originalTokens?: number;
+    original_token_count?: number;
+    optimizedTokens?: number;
+    optimisedTokens?: number;
+    optimized_token_count?: number;
+    tokenSavings?: number;
+    token_savings?: number;
+    compressionPercentage?: number;
+    compression_percentage?: number;
+  };
+  originalTokens?: number;
+  original_token_count?: number;
+  optimizedTokens?: number;
+  optimisedTokens?: number;
+  optimized_token_count?: number;
+  tokenSavings?: number;
+  token_savings?: number;
+  compressionPercentage?: number;
+  compression_percentage?: number;
+};
+
+async function optimisePromptWithCortave(prompt: string) {
+  const cortaveUrl = process.env.CORTAVE_API_URL;
+  const cortaveApiKey = process.env.CORTAVE_API_KEY;
+
+  if (!cortaveUrl || !cortaveApiKey) {
+    return {
+      prompt,
+      usedCortave: false,
+      metrics: null,
+      error: "Cortave is not configured."
+    };
+  }
+
+  try {
+    const response = await fetch(cortaveUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cortaveApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        prompt,
+        task: "optimise_prompt",
+        goal: "Compress and optimise this prompt while preserving all business context and required output sections."
+      })
+    });
+
+    const data = (await response.json()) as CortaveResponse;
+
+    if (!response.ok) {
+      return {
+        prompt,
+        usedCortave: false,
+        metrics: null,
+        error: `Cortave failed with status ${response.status}.`
+      };
+    }
+
+    const optimisedPrompt =
+      data.optimizedPrompt ||
+      data.optimisedPrompt ||
+      data.prompt ||
+      data.data?.optimizedPrompt ||
+      data.data?.optimisedPrompt ||
+      data.data?.prompt ||
+      prompt;
+
+    const metrics: CortaveMetrics = {
+      originalTokens: data.originalTokens ?? data.original_token_count ?? data.data?.originalTokens ?? data.data?.original_token_count,
+      optimisedTokens:
+        data.optimizedTokens ??
+        data.optimisedTokens ??
+        data.optimized_token_count ??
+        data.data?.optimizedTokens ??
+        data.data?.optimisedTokens ??
+        data.data?.optimized_token_count,
+      tokenSavings: data.tokenSavings ?? data.token_savings ?? data.data?.tokenSavings ?? data.data?.token_savings,
+      compressionPercentage:
+        data.compressionPercentage ??
+        data.compression_percentage ??
+        data.data?.compressionPercentage ??
+        data.data?.compression_percentage
+    };
+
+    return {
+      prompt: optimisedPrompt,
+      usedCortave: optimisedPrompt !== prompt,
+      metrics,
+      error: null
+    };
+  } catch (error) {
+    return {
+      prompt,
+      usedCortave: false,
+      metrics: null,
+      error: error instanceof Error ? error.message : "Cortave request failed."
+    };
+  }
+}
+
 export async function POST(request: Request) {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -51,6 +167,8 @@ Output exactly these sections:
 Keep it practical, executive, and specific to partner-led revenue. Avoid generic transformation language.
 `;
 
+  const cortaveResult = await optimisePromptWithCortave(prompt);
+
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -67,7 +185,7 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
         },
         {
           role: "user",
-          content: prompt
+          content: cortaveResult.prompt
         }
       ],
       temperature: 0.4
@@ -102,5 +220,12 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
       .join("\n\n") ||
     "";
 
-  return NextResponse.json({ actionPlan });
+  return NextResponse.json({
+    actionPlan,
+    cortave: {
+      optimised: cortaveResult.usedCortave,
+      metrics: cortaveResult.metrics,
+      fallbackReason: cortaveResult.error
+    }
+  });
 }
