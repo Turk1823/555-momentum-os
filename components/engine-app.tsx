@@ -9,6 +9,7 @@ import {
   ClipboardCopy,
   Download,
   Gauge,
+  Lightbulb,
   Mail,
   Rocket,
   Target,
@@ -117,6 +118,11 @@ export function EngineApp() {
     tone: "idle",
     message: ""
   });
+  const [actionPlanStatus, setActionPlanStatus] = useState<{ tone: "idle" | "success" | "error"; message: string }>({
+    tone: "idle",
+    message: ""
+  });
+  const [actionPlan, setActionPlan] = useState("");
 
   useEffect(() => {
     const stored = window.localStorage.getItem("555-engine-state");
@@ -148,6 +154,8 @@ export function EngineApp() {
 
   const saveAssessment = async () => {
     setSaveStatus({ tone: "idle", message: "Saving assessment..." });
+    setActionPlan("");
+    setActionPlanStatus({ tone: "idle", message: "" });
     const result = await saveAssessmentSubmission({
       intake: state.intake,
       emailCapture: state.email,
@@ -173,6 +181,48 @@ export function EngineApp() {
       executiveSummary
     });
     setSaveStatus({ tone: result.ok ? "success" : "error", message: result.message });
+  };
+
+  const generateActionPlan = async () => {
+    setActionPlanStatus({ tone: "idle", message: "Generating your executive action plan..." });
+    setActionPlan("");
+
+    try {
+      const response = await fetch("/api/action-plan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          totalScore,
+          maturityLevel,
+          categoryScores: categoryScores.map((category) => ({
+            name: category.name,
+            score: category.score
+          })),
+          lowestScoringCategory: lowest.name,
+          selectedBottleneck: state.primaryConstraint,
+          companyContext: {
+            company: state.intake.company,
+            role: state.intake.role
+          }
+        })
+      });
+
+      const data = (await response.json()) as { actionPlan?: string; error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Action plan generation failed.");
+      }
+
+      setActionPlan(data.actionPlan || "");
+      setActionPlanStatus({ tone: "success", message: "Action plan generated." });
+    } catch (error) {
+      setActionPlanStatus({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Action plan generation failed."
+      });
+    }
   };
 
   const exportPdf = () => {
@@ -267,6 +317,9 @@ export function EngineApp() {
             onSaveAssessment={saveAssessment}
             saveStatus={saveStatus}
             intake={state.intake}
+            onGenerateActionPlan={generateActionPlan}
+            actionPlanStatus={actionPlanStatus}
+            actionPlan={actionPlan}
           />
 
           {activeModule === "diagnostic" && <Diagnostic scores={state.scores} setScores={(scores) => updateState({ scores })} />}
@@ -395,7 +448,12 @@ function ResultsDashboard(props: {
   onSaveAssessment: () => Promise<void>;
   saveStatus: { tone: "idle" | "success" | "error"; message: string };
   intake: UserIntake;
+  onGenerateActionPlan: () => Promise<void>;
+  actionPlanStatus: { tone: "idle" | "success" | "error"; message: string };
+  actionPlan: string;
 }) {
+  const canGenerateActionPlan = props.saveStatus.tone === "success";
+
   return (
     <div className="grid gap-6">
       <div className="grid gap-4 md:grid-cols-4">
@@ -447,6 +505,34 @@ function ResultsDashboard(props: {
               )}>
                 {props.saveStatus.message}
               </p>
+            )}
+            {canGenerateActionPlan && (
+              <div className="grid gap-3 rounded-lg border border-teal-100 bg-teal-50 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-teal-950">AI executive action plan</p>
+                    <p className="text-sm leading-6 text-teal-800">Generate a personalised 30/60/90-day revenue momentum plan from the saved assessment.</p>
+                  </div>
+                  <Button onClick={props.onGenerateActionPlan}>
+                    <Lightbulb size={16} /> Generate My Ecosystem Revenue Action Plan
+                  </Button>
+                </div>
+                {props.actionPlanStatus.message && (
+                  <p className={cn(
+                    "whitespace-pre-wrap break-words rounded-md p-3 text-sm font-medium",
+                    props.actionPlanStatus.tone === "success" && "bg-white text-teal-800",
+                    props.actionPlanStatus.tone === "error" && "bg-rose-50 text-rose-700",
+                    props.actionPlanStatus.tone === "idle" && "bg-white text-slate-600"
+                  )}>
+                    {props.actionPlanStatus.message}
+                  </p>
+                )}
+                {props.actionPlan && (
+                  <div className="whitespace-pre-wrap rounded-lg border border-teal-100 bg-white p-4 text-sm leading-6 text-slate-700">
+                    {props.actionPlan}
+                  </div>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
