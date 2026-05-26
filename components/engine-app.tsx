@@ -130,6 +130,8 @@ export function EngineApp() {
       endpoint?: string;
       httpStatus?: number | "skipped";
       message?: string;
+      topLevelKeys?: string[];
+      optimisedPromptField?: string;
     };
     metrics?: {
       originalTokens?: number;
@@ -235,6 +237,8 @@ export function EngineApp() {
             endpoint?: string;
             httpStatus?: number | "skipped";
             message?: string;
+            topLevelKeys?: string[];
+            optimisedPromptField?: string;
           };
           metrics?: {
             originalTokens?: number;
@@ -504,6 +508,8 @@ function ResultsDashboard(props: {
       endpoint?: string;
       httpStatus?: number | "skipped";
       message?: string;
+      topLevelKeys?: string[];
+      optimisedPromptField?: string;
     };
     metrics?: {
       originalTokens?: number;
@@ -629,6 +635,8 @@ function CortaveOptimisationNote({
       endpoint?: string;
       httpStatus?: number | "skipped";
       message?: string;
+      topLevelKeys?: string[];
+      optimisedPromptField?: string;
     };
     metrics?: {
       originalTokens?: number;
@@ -651,6 +659,9 @@ function CortaveOptimisationNote({
   return (
     <div className="grid gap-1 text-xs leading-5 text-teal-700">
       <p>Cortave status: {statusText}</p>
+      <p>Cortave HTTP status: {optimisation.debug?.httpStatus ?? "not available"}</p>
+      <p>Available top-level response keys: {optimisation.debug?.topLevelKeys?.length ? optimisation.debug.topLevelKeys.join(", ") : "none detected"}</p>
+      <p>Optimised prompt field used: {optimisation.debug?.optimisedPromptField || "none"}</p>
       {optimisation.optimised && (
         <p>
           AI generation optimised via Cortave.

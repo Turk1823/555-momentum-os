@@ -28,16 +28,27 @@ type CortaveDebug = {
   endpoint?: string;
   httpStatus?: number | "skipped";
   message?: string;
+  topLevelKeys?: string[];
+  optimisedPromptField?: string;
 };
 
 type CortaveResponse = {
+  optimized_prompt?: string;
   optimizedPrompt?: string;
   optimisedPrompt?: string;
   prompt?: string;
+  output?: string | Array<{ content?: string | Array<{ text?: string }> }>;
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
   data?: {
+    optimized_prompt?: string;
     optimizedPrompt?: string;
     optimisedPrompt?: string;
     prompt?: string;
+    output?: string;
     originalTokens?: number;
     original_token_count?: number;
     optimizedTokens?: number;
@@ -76,7 +87,9 @@ async function optimisePromptWithCortave(prompt: string) {
       metrics: null,
       debug: {
         httpStatus: "skipped" as const,
-        message: "Cortave is not configured."
+        message: "Cortave is not configured.",
+        topLevelKeys: [],
+        optimisedPromptField: "none"
       },
       error: "Cortave is not configured."
     };
@@ -109,6 +122,8 @@ async function optimisePromptWithCortave(prompt: string) {
       data = {};
     }
 
+    const topLevelKeys = Object.keys(data);
+
     if (!response.ok) {
       console.error("Cortave response body if error", {
         endpoint: cortaveUrl,
@@ -127,20 +142,16 @@ async function optimisePromptWithCortave(prompt: string) {
         debug: {
           endpoint: cortaveUrl,
           httpStatus: response.status,
-          message: getShortCortaveError(responseBody) || `Cortave failed with status ${response.status}.`
+          message: getShortCortaveError(responseBody) || `Cortave failed with status ${response.status}.`,
+          topLevelKeys,
+          optimisedPromptField: "none"
         },
         error: `Cortave failed with status ${response.status}.`
       };
     }
 
-    const optimisedPrompt =
-      data.optimizedPrompt ||
-      data.optimisedPrompt ||
-      data.prompt ||
-      data.data?.optimizedPrompt ||
-      data.data?.optimisedPrompt ||
-      data.data?.prompt ||
-      prompt;
+    const extractedPrompt = extractOptimisedPrompt(data);
+    const optimisedPrompt = extractedPrompt.prompt || prompt;
 
     const metrics: CortaveMetrics = {
       originalTokens: data.originalTokens ?? data.original_token_count ?? data.data?.originalTokens ?? data.data?.original_token_count,
@@ -160,22 +171,28 @@ async function optimisePromptWithCortave(prompt: string) {
     };
 
     if (optimisedPrompt !== prompt) {
-      console.log("Using optimised prompt");
+      console.log("Using optimised prompt", {
+        field: extractedPrompt.field,
+        topLevelKeys
+      });
     } else {
       console.log("Falling back to original prompt", {
-        reason: "Cortave did not return a different optimised prompt."
+        reason: "Cortave did not return a different optimised prompt.",
+        topLevelKeys
       });
     }
 
     return {
       prompt: optimisedPrompt,
-      usedCortave: optimisedPrompt !== prompt,
-      status: optimisedPrompt !== prompt ? ("success" as CortaveStatus) : ("failed" as CortaveStatus),
+      usedCortave: Boolean(extractedPrompt.prompt),
+      status: extractedPrompt.prompt ? ("success" as CortaveStatus) : ("failed" as CortaveStatus),
       metrics,
       debug: {
         endpoint: cortaveUrl,
         httpStatus: response.status,
-        message: optimisedPrompt !== prompt ? "Cortave optimisation succeeded." : "Cortave did not return a different optimised prompt."
+        message: extractedPrompt.prompt ? "Cortave optimisation succeeded." : "Cortave did not return an optimised prompt field.",
+        topLevelKeys,
+        optimisedPromptField: extractedPrompt.field || "none"
       },
       error: null
     };
@@ -195,7 +212,8 @@ async function optimisePromptWithCortave(prompt: string) {
       metrics: null,
       debug: {
         endpoint: cortaveUrl,
-        message: error instanceof Error ? error.message : "Cortave request failed."
+        message: error instanceof Error ? error.message : "Cortave request failed.",
+        optimisedPromptField: "none"
       },
       error: error instanceof Error ? error.message : "Cortave request failed."
     };
@@ -221,6 +239,47 @@ function getShortCortaveError(responseBody: string) {
   }
 
   return responseBody.slice(0, 240);
+}
+
+function extractOptimisedPrompt(data: CortaveResponse) {
+  const candidates: Array<[string, unknown]> = [
+    ["response.choices[0].message.content", data.choices?.[0]?.message?.content],
+    ["response.optimized_prompt", data.optimized_prompt],
+    ["response.optimisedPrompt", data.optimisedPrompt],
+    ["response.optimizedPrompt", data.optimizedPrompt],
+    ["response.prompt", data.prompt],
+    ["response.output", typeof data.output === "string" ? data.output : undefined],
+    ["response.data.optimized_prompt", data.data?.optimized_prompt],
+    ["response.data.optimisedPrompt", data.data?.optimisedPrompt],
+    ["response.data.optimizedPrompt", data.data?.optimizedPrompt],
+    ["response.data.prompt", data.data?.prompt],
+    ["response.data.output", data.data?.output]
+  ];
+
+  for (const [field, value] of candidates) {
+    if (typeof value === "string" && value.trim()) {
+      return { prompt: value.trim(), field };
+    }
+  }
+
+  const outputContent = Array.isArray(data.output) ? data.output[0]?.content : undefined;
+  if (typeof outputContent === "string" && outputContent.trim()) {
+    return { prompt: outputContent.trim(), field: "response.output[0].content" };
+  }
+
+  if (Array.isArray(outputContent)) {
+    const text = outputContent
+      .map((item) => item.text)
+      .filter(Boolean)
+      .join("\n\n")
+      .trim();
+
+    if (text) {
+      return { prompt: text, field: "response.output[0].content[].text" };
+    }
+  }
+
+  return { prompt: "", field: "" };
 }
 
 export async function POST(request: Request) {
