@@ -22,6 +22,8 @@ type CortaveMetrics = {
   compressionPercentage?: number;
 };
 
+type CortaveStatus = "success" | "failed" | "skipped";
+
 type CortaveResponse = {
   optimizedPrompt?: string;
   optimisedPrompt?: string;
@@ -56,15 +58,22 @@ async function optimisePromptWithCortave(prompt: string) {
   const cortaveApiKey = process.env.CORTAVE_API_KEY;
 
   if (!cortaveUrl || !cortaveApiKey) {
+    console.log("Falling back to original prompt", {
+      reason: "Cortave is not configured."
+    });
+
     return {
       prompt,
       usedCortave: false,
+      status: "skipped" as CortaveStatus,
       metrics: null,
       error: "Cortave is not configured."
     };
   }
 
   try {
+    console.log("Calling Cortave optimisation");
+
     const response = await fetch(cortaveUrl, {
       method: "POST",
       headers: {
@@ -78,12 +87,27 @@ async function optimisePromptWithCortave(prompt: string) {
       })
     });
 
-    const data = (await response.json()) as CortaveResponse;
+    const responseBody = await response.text();
+    console.log("Cortave response status", response.status);
+
+    let data: CortaveResponse = {};
+
+    try {
+      data = responseBody ? (JSON.parse(responseBody) as CortaveResponse) : {};
+    } catch {
+      data = {};
+    }
 
     if (!response.ok) {
+      console.error("Cortave response body if error", responseBody);
+      console.log("Falling back to original prompt", {
+        reason: `Cortave failed with status ${response.status}.`
+      });
+
       return {
         prompt,
         usedCortave: false,
+        status: "failed" as CortaveStatus,
         metrics: null,
         error: `Cortave failed with status ${response.status}.`
       };
@@ -115,16 +139,31 @@ async function optimisePromptWithCortave(prompt: string) {
         data.data?.compression_percentage
     };
 
+    if (optimisedPrompt !== prompt) {
+      console.log("Using optimised prompt");
+    } else {
+      console.log("Falling back to original prompt", {
+        reason: "Cortave did not return a different optimised prompt."
+      });
+    }
+
     return {
       prompt: optimisedPrompt,
       usedCortave: optimisedPrompt !== prompt,
+      status: optimisedPrompt !== prompt ? ("success" as CortaveStatus) : ("failed" as CortaveStatus),
       metrics,
       error: null
     };
   } catch (error) {
+    console.error("Cortave response body if error", error);
+    console.log("Falling back to original prompt", {
+      reason: error instanceof Error ? error.message : "Cortave request failed."
+    });
+
     return {
       prompt,
       usedCortave: false,
+      status: "failed" as CortaveStatus,
       metrics: null,
       error: error instanceof Error ? error.message : "Cortave request failed."
     };
@@ -224,8 +263,10 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
     actionPlan,
     cortave: {
       optimised: cortaveResult.usedCortave,
+      status: cortaveResult.status,
       metrics: cortaveResult.metrics,
       fallbackReason: cortaveResult.error
-    }
+    },
+    cortaveStatus: cortaveResult.status
   });
 }

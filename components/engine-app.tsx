@@ -125,6 +125,7 @@ export function EngineApp() {
   const [actionPlan, setActionPlan] = useState("");
   const [cortaveOptimisation, setCortaveOptimisation] = useState<{
     optimised: boolean;
+    status: "success" | "failed" | "skipped";
     metrics?: {
       originalTokens?: number;
       optimisedTokens?: number;
@@ -224,6 +225,7 @@ export function EngineApp() {
         error?: string;
         cortave?: {
           optimised: boolean;
+          status?: "success" | "failed" | "skipped";
           metrics?: {
             originalTokens?: number;
             optimisedTokens?: number;
@@ -231,6 +233,7 @@ export function EngineApp() {
             compressionPercentage?: number;
           } | null;
         };
+        cortaveStatus?: "success" | "failed" | "skipped";
       };
 
       if (!response.ok) {
@@ -238,7 +241,16 @@ export function EngineApp() {
       }
 
       setActionPlan(data.actionPlan || "");
-      setCortaveOptimisation(data.cortave || null);
+      setCortaveOptimisation(
+        data.cortave
+          ? {
+              ...data.cortave,
+              status: data.cortave.status || data.cortaveStatus || "skipped"
+            }
+          : data.cortaveStatus
+            ? { optimised: data.cortaveStatus === "success", status: data.cortaveStatus, metrics: null }
+            : null
+      );
       setActionPlanStatus({ tone: "success", message: "Action plan generated." });
     } catch (error) {
       setActionPlanStatus({
@@ -477,6 +489,7 @@ function ResultsDashboard(props: {
   actionPlan: string;
   cortaveOptimisation: {
     optimised: boolean;
+    status: "success" | "failed" | "skipped";
     metrics?: {
       originalTokens?: number;
       optimisedTokens?: number;
@@ -596,6 +609,7 @@ function CortaveOptimisationNote({
 }: {
   optimisation: {
     optimised: boolean;
+    status: "success" | "failed" | "skipped";
     metrics?: {
       originalTokens?: number;
       optimisedTokens?: number;
@@ -604,20 +618,24 @@ function CortaveOptimisationNote({
     } | null;
   } | null;
 }) {
-  if (!optimisation?.optimised) return null;
+  if (!optimisation) return null;
 
   const metrics = [
-    optimisation.metrics?.originalTokens !== undefined ? `Original tokens: ${optimisation.metrics.originalTokens}` : "",
-    optimisation.metrics?.optimisedTokens !== undefined ? `Optimised tokens: ${optimisation.metrics.optimisedTokens}` : "",
-    optimisation.metrics?.tokenSavings !== undefined ? `Token savings: ${optimisation.metrics.tokenSavings}` : "",
-    optimisation.metrics?.compressionPercentage !== undefined ? `Compression: ${optimisation.metrics.compressionPercentage}%` : ""
+    optimisation.metrics?.originalTokens !== undefined ? `Original Prompt Size: ${optimisation.metrics.originalTokens}` : "",
+    optimisation.metrics?.optimisedTokens !== undefined ? `Optimised Prompt Size: ${optimisation.metrics.optimisedTokens}` : "",
+    optimisation.metrics?.compressionPercentage !== undefined ? `Estimated Token Reduction %: ${optimisation.metrics.compressionPercentage}%` : ""
   ].filter(Boolean);
 
   return (
-    <p className="text-xs leading-5 text-teal-700">
-      AI generation optimised via Cortave.
-      {metrics.length > 0 ? ` ${metrics.join(" | ")}` : ""}
-    </p>
+    <div className="grid gap-1 text-xs leading-5 text-teal-700">
+      <p>Cortave status: {optimisation.status}</p>
+      {optimisation.optimised && (
+        <p>
+          AI generation optimised via Cortave.
+          {metrics.length > 0 ? ` ${metrics.join(" | ")}` : ""}
+        </p>
+      )}
+    </div>
   );
 }
 
