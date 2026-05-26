@@ -453,6 +453,7 @@ function ResultsDashboard(props: {
   actionPlan: string;
 }) {
   const canGenerateActionPlan = props.saveStatus.tone === "success";
+  const isGeneratingActionPlan = props.actionPlanStatus.tone === "idle" && Boolean(props.actionPlanStatus.message);
 
   return (
     <div className="grid gap-6">
@@ -507,16 +508,11 @@ function ResultsDashboard(props: {
               </p>
             )}
             {canGenerateActionPlan && (
-              <div className="grid gap-3 rounded-lg border border-teal-100 bg-teal-50 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-teal-950">AI executive action plan</p>
-                    <p className="text-sm leading-6 text-teal-800">Generate a personalised 30/60/90-day revenue momentum plan from the saved assessment.</p>
-                  </div>
-                  <Button onClick={props.onGenerateActionPlan}>
-                    <Lightbulb size={16} /> Generate My Ecosystem Revenue Action Plan
-                  </Button>
-                </div>
+              <div className="grid gap-3 rounded-lg border border-teal-200 bg-teal-50 p-4">
+                <p className="text-sm font-semibold text-teal-950">Your assessment is saved. Generate the next-step plan from these results.</p>
+                <Button className="w-full sm:w-fit" disabled={isGeneratingActionPlan} onClick={props.onGenerateActionPlan}>
+                  <Lightbulb size={16} /> Generate My Ecosystem Revenue Action Plan
+                </Button>
                 {props.actionPlanStatus.message && (
                   <p className={cn(
                     "whitespace-pre-wrap break-words rounded-md p-3 text-sm font-medium",
