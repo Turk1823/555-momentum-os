@@ -126,6 +126,11 @@ export function EngineApp() {
   const [cortaveOptimisation, setCortaveOptimisation] = useState<{
     optimised: boolean;
     status: "success" | "failed" | "skipped";
+    debug?: {
+      endpoint?: string;
+      httpStatus?: number | "skipped";
+      message?: string;
+    };
     metrics?: {
       originalTokens?: number;
       optimisedTokens?: number;
@@ -226,6 +231,11 @@ export function EngineApp() {
         cortave?: {
           optimised: boolean;
           status?: "success" | "failed" | "skipped";
+          debug?: {
+            endpoint?: string;
+            httpStatus?: number | "skipped";
+            message?: string;
+          };
           metrics?: {
             originalTokens?: number;
             optimisedTokens?: number;
@@ -490,6 +500,11 @@ function ResultsDashboard(props: {
   cortaveOptimisation: {
     optimised: boolean;
     status: "success" | "failed" | "skipped";
+    debug?: {
+      endpoint?: string;
+      httpStatus?: number | "skipped";
+      message?: string;
+    };
     metrics?: {
       originalTokens?: number;
       optimisedTokens?: number;
@@ -610,6 +625,11 @@ function CortaveOptimisationNote({
   optimisation: {
     optimised: boolean;
     status: "success" | "failed" | "skipped";
+    debug?: {
+      endpoint?: string;
+      httpStatus?: number | "skipped";
+      message?: string;
+    };
     metrics?: {
       originalTokens?: number;
       optimisedTokens?: number;
@@ -636,6 +656,13 @@ function CortaveOptimisationNote({
           AI generation optimised via Cortave.
           {metrics.length > 0 ? ` ${metrics.join(" | ")}` : ""}
         </p>
+      )}
+      {optimisation.status === "failed" && (
+        <div className="rounded-md border border-teal-100 bg-white p-2 text-slate-600">
+          <p>HTTP status code: {optimisation.debug?.httpStatus ?? "not available"}</p>
+          <p>Short error message: {optimisation.debug?.message || "No Cortave error message returned."}</p>
+          <p>Endpoint: {optimisation.debug?.endpoint || "not available"}</p>
+        </div>
       )}
     </div>
   );
