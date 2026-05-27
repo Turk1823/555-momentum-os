@@ -30,6 +30,8 @@ type CortaveDebug = {
   message?: string;
   topLevelKeys?: string[];
   optimisedPromptField?: string;
+  cortaveApiKeyExists?: boolean;
+  authorizationHeaderAttached?: boolean;
 };
 
 type CortaveResponse = {
@@ -71,9 +73,10 @@ type CortaveResponse = {
 };
 
 async function optimisePromptWithCortave(prompt: string) {
-  const cortaveUrl = process.env.CORTAVE_API_URL;
+  const cortaveUrl = "https://openrouter.ai/api/v1/chat/completions";
+  const cortaveApiKeyExists = Boolean(process.env.CORTAVE_API_KEY);
 
-  if (!cortaveUrl) {
+  if (!process.env.CORTAVE_API_URL) {
     console.log("Cortave response status", "failed - missing CORTAVE_API_URL");
     console.log("Falling back to original prompt", {
       reason: "Cortave status: failed - missing CORTAVE_API_URL"
@@ -85,15 +88,18 @@ async function optimisePromptWithCortave(prompt: string) {
       status: "failed" as CortaveStatus,
       metrics: null,
       debug: {
+        endpoint: cortaveUrl,
         message: "missing CORTAVE_API_URL",
         topLevelKeys: [],
-        optimisedPromptField: "none"
+        optimisedPromptField: "none",
+        cortaveApiKeyExists,
+        authorizationHeaderAttached: false
       },
       error: "missing CORTAVE_API_URL"
     };
   }
 
-  if (!process.env.CORTAVE_API_KEY) {
+  if (!cortaveApiKeyExists) {
     console.log("Cortave response status", "failed - missing CORTAVE_API_KEY");
     console.log("Falling back to original prompt", {
       reason: "Cortave status: failed - missing CORTAVE_API_KEY"
@@ -108,7 +114,9 @@ async function optimisePromptWithCortave(prompt: string) {
         endpoint: cortaveUrl,
         message: "missing CORTAVE_API_KEY",
         topLevelKeys: [],
-        optimisedPromptField: "none"
+        optimisedPromptField: "none",
+        cortaveApiKeyExists,
+        authorizationHeaderAttached: false
       },
       error: "missing CORTAVE_API_KEY"
     };
@@ -116,11 +124,12 @@ async function optimisePromptWithCortave(prompt: string) {
 
   try {
     console.log("Calling Cortave optimisation");
+    const authorizationHeaderAttached = true;
 
     const response = await fetch(cortaveUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.CORTAVE_API_KEY}`,
+        "Authorization": `Bearer ${process.env.CORTAVE_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -173,7 +182,9 @@ async function optimisePromptWithCortave(prompt: string) {
           httpStatus: response.status,
           message: getShortCortaveError(responseBody) || `Cortave failed with status ${response.status}.`,
           topLevelKeys,
-          optimisedPromptField: "none"
+          optimisedPromptField: "none",
+          cortaveApiKeyExists,
+          authorizationHeaderAttached
         },
         error: `Cortave failed with status ${response.status}.`
       };
@@ -221,7 +232,9 @@ async function optimisePromptWithCortave(prompt: string) {
         httpStatus: response.status,
         message: extractedPrompt.prompt ? "Cortave optimisation succeeded." : "Cortave did not return an optimised prompt field.",
         topLevelKeys,
-        optimisedPromptField: extractedPrompt.field || "none"
+        optimisedPromptField: extractedPrompt.field || "none",
+        cortaveApiKeyExists,
+        authorizationHeaderAttached
       },
       error: null
     };
@@ -242,7 +255,9 @@ async function optimisePromptWithCortave(prompt: string) {
       debug: {
         endpoint: cortaveUrl,
         message: error instanceof Error ? error.message : "Cortave request failed.",
-        optimisedPromptField: "none"
+        optimisedPromptField: "none",
+        cortaveApiKeyExists,
+        authorizationHeaderAttached: cortaveApiKeyExists
       },
       error: error instanceof Error ? error.message : "Cortave request failed."
     };
