@@ -71,11 +71,30 @@ type CortaveResponse = {
 };
 
 async function optimisePromptWithCortave(prompt: string) {
-  const cortaveUrl = process.env.CORTAVE_API_URL || "https://openrouter.ai/api/v1/chat/completions";
-  const cortaveApiKey = process.env.CORTAVE_API_KEY;
+  const cortaveUrl = process.env.CORTAVE_API_URL;
 
-  if (!cortaveApiKey) {
-    console.log("Cortave response status", "skipped");
+  if (!cortaveUrl) {
+    console.log("Cortave response status", "failed - missing CORTAVE_API_URL");
+    console.log("Falling back to original prompt", {
+      reason: "Cortave status: failed - missing CORTAVE_API_URL"
+    });
+
+    return {
+      prompt,
+      usedCortave: false,
+      status: "failed" as CortaveStatus,
+      metrics: null,
+      debug: {
+        message: "missing CORTAVE_API_URL",
+        topLevelKeys: [],
+        optimisedPromptField: "none"
+      },
+      error: "missing CORTAVE_API_URL"
+    };
+  }
+
+  if (!process.env.CORTAVE_API_KEY) {
+    console.log("Cortave response status", "failed - missing CORTAVE_API_KEY");
     console.log("Falling back to original prompt", {
       reason: "Cortave status: failed - missing CORTAVE_API_KEY"
     });
@@ -101,7 +120,7 @@ async function optimisePromptWithCortave(prompt: string) {
     const response = await fetch(cortaveUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${cortaveApiKey}`,
+        Authorization: `Bearer ${process.env.CORTAVE_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
