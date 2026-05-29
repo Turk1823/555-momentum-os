@@ -24,19 +24,6 @@ type CortaveMetrics = {
 
 type CortaveStatus = "success" | "failed" | "skipped";
 
-type CortaveBetaDebug = {
-  status: CortaveStatus;
-  httpStatus: number | "skipped" | null;
-  endpoint: string | null;
-  message: string | null;
-  semanticGateway?: {
-    source: string | null;
-    confidence: string | null;
-    contextDocs: string | null;
-    modelFallback: string | null;
-  };
-};
-
 type CortaveResponse = {
   optimized_prompt?: string;
   optimizedPrompt?: string;
@@ -294,18 +281,6 @@ async function generateActionPlanWithCortave(prompt: string) {
   }
 }
 
-function getCortaveBetaDebug(cortaveResult: Awaited<ReturnType<typeof generateActionPlanWithCortave>>): CortaveBetaDebug {
-  const httpStatus = "httpStatus" in cortaveResult.debug ? cortaveResult.debug.httpStatus : null;
-
-  return {
-    status: cortaveResult.status,
-    httpStatus: httpStatus ?? null,
-    endpoint: cortaveResult.debug.endpoint || null,
-    message: cortaveResult.debug.message || cortaveResult.error || null,
-    semanticGateway: "semanticGateway" in cortaveResult.debug ? cortaveResult.debug.semanticGateway : undefined
-  };
-}
-
 function getShortCortaveError(responseBody: string) {
   if (!responseBody) return "";
 
@@ -398,13 +373,12 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
 `;
 
   const cortaveResult = await generateActionPlanWithCortave(prompt);
-  const cortaveDebug = getCortaveBetaDebug(cortaveResult);
   console.log("Cortave generation complete before fallback decision", {
     cortaveStatus: cortaveResult.status
   });
 
   if (cortaveResult.status === "success" && cortaveResult.actionPlan) {
-    return NextResponse.json({ actionPlan: cortaveResult.actionPlan, cortaveDebug });
+    return NextResponse.json({ actionPlan: cortaveResult.actionPlan });
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
@@ -412,8 +386,7 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
   if (!apiKey) {
     return NextResponse.json(
       {
-        error: "Could not generate your action plan right now. Please try again shortly.",
-        cortaveDebug
+        error: "Could not generate your action plan right now. Please try again shortly."
       },
       { status: 500 }
     );
@@ -455,8 +428,7 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
   if (!response.ok) {
     return NextResponse.json(
       {
-        error: "Could not generate your action plan right now. Please try again shortly.",
-        cortaveDebug
+        error: "Could not generate your action plan right now. Please try again shortly."
       },
       { status: response.status }
     );
@@ -471,5 +443,5 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
       .join("\n\n") ||
     "";
 
-  return NextResponse.json({ actionPlan, cortaveDebug });
+  return NextResponse.json({ actionPlan });
 }

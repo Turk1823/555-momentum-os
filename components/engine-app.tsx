@@ -110,13 +110,6 @@ const modules = [
 
 type ModuleId = (typeof modules)[number]["id"];
 
-type CortaveBetaDebug = {
-  status?: "success" | "failed" | "skipped";
-  httpStatus?: number | "skipped" | null;
-  endpoint?: string | null;
-  message?: string | null;
-};
-
 export function EngineApp() {
   const [started, setStarted] = useState(false);
   const [activeModule, setActiveModule] = useState<ModuleId>("diagnostic");
@@ -130,7 +123,6 @@ export function EngineApp() {
     message: ""
   });
   const [actionPlan, setActionPlan] = useState("");
-  const [cortaveDebug, setCortaveDebug] = useState<CortaveBetaDebug | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("555-engine-state");
@@ -164,7 +156,6 @@ export function EngineApp() {
     setSaveStatus({ tone: "idle", message: "Saving assessment..." });
     setActionPlan("");
     setActionPlanStatus({ tone: "idle", message: "" });
-    setCortaveDebug(null);
     const result = await saveAssessmentSubmission({
       intake: state.intake,
       emailCapture: state.email,
@@ -195,7 +186,6 @@ export function EngineApp() {
   const generateActionPlan = async () => {
     setActionPlanStatus({ tone: "idle", message: "Generating your executive action plan..." });
     setActionPlan("");
-    setCortaveDebug(null);
 
     try {
       const response = await fetch("/api/action-plan", {
@@ -222,10 +212,7 @@ export function EngineApp() {
       const data = (await response.json()) as {
         actionPlan?: string;
         error?: string;
-        cortaveDebug?: CortaveBetaDebug;
       };
-
-      setCortaveDebug(data.cortaveDebug || null);
 
       if (!response.ok) {
         throw new Error("Could not generate your action plan right now. Please try again shortly.");
@@ -336,7 +323,6 @@ export function EngineApp() {
             onGenerateActionPlan={generateActionPlan}
             actionPlanStatus={actionPlanStatus}
             actionPlan={actionPlan}
-            cortaveDebug={cortaveDebug}
           />
 
           {activeModule === "diagnostic" && <Diagnostic scores={state.scores} setScores={(scores) => updateState({ scores })} />}
@@ -468,7 +454,6 @@ function ResultsDashboard(props: {
   onGenerateActionPlan: () => Promise<void>;
   actionPlanStatus: { tone: "idle" | "success" | "error"; message: string };
   actionPlan: string;
-  cortaveDebug: CortaveBetaDebug | null;
 }) {
   const canGenerateActionPlan = props.saveStatus.tone === "success";
   const isGeneratingActionPlan = props.actionPlanStatus.tone === "idle" && Boolean(props.actionPlanStatus.message);
@@ -542,20 +527,9 @@ function ResultsDashboard(props: {
                   </p>
                 )}
                 {props.actionPlan && (
-                  <>
-                    <div className="whitespace-pre-wrap rounded-lg border border-teal-100 bg-white p-4 text-sm leading-6 text-slate-700">
-                      {props.actionPlan}
-                    </div>
-                    {props.cortaveDebug && (
-                      <div className="rounded-lg border border-slate-200 bg-white/80 p-3 text-xs leading-5 text-slate-500">
-                        <p className="font-semibold text-slate-600">Cortave beta debug</p>
-                        <p>Cortave status: {props.cortaveDebug.status || "unknown"}</p>
-                        <p>HTTP status: {props.cortaveDebug.httpStatus ?? "not available"}</p>
-                        <p className="break-all">Endpoint: {props.cortaveDebug.endpoint || "not configured"}</p>
-                        <p>Error message: {props.cortaveDebug.message || "none"}</p>
-                      </div>
-                    )}
-                  </>
+                  <div className="whitespace-pre-wrap rounded-lg border border-teal-100 bg-white p-4 text-sm leading-6 text-slate-700">
+                    {props.actionPlan}
+                  </div>
                 )}
               </div>
             )}
