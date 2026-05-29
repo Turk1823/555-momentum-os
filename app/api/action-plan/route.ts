@@ -39,8 +39,12 @@ type CortaveResponse = {
   optimizedPrompt?: string;
   optimisedPrompt?: string;
   prompt?: string;
+  completion?: string;
+  response?: string;
+  text?: string;
   output?: string | Array<{ content?: string | Array<{ text?: string }> }>;
   choices?: Array<{
+    text?: string;
     message?: {
       content?: string;
     };
@@ -73,10 +77,11 @@ type CortaveResponse = {
 };
 
 async function optimisePromptWithCortave(prompt: string) {
-  const cortaveUrl = "https://openrouter.ai/api/v1/chat/completions";
+  const semanticGatewayUrl = "https://api.semanticgateway.com/v1/completions";
+  const cortaveUrl = process.env.CORTAVE_API_URL ? semanticGatewayUrl : undefined;
   const cortaveApiKeyExists = Boolean(process.env.CORTAVE_API_KEY);
 
-  if (!process.env.CORTAVE_API_URL) {
+  if (!cortaveUrl) {
     console.log("Cortave response status", "failed - missing CORTAVE_API_URL");
     console.log("Falling back to original prompt", {
       reason: "Cortave status: failed - missing CORTAVE_API_URL"
@@ -134,17 +139,7 @@ async function optimisePromptWithCortave(prompt: string) {
       },
       body: JSON.stringify({
         model: process.env.CORTAVE_MODEL || "openai/gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You optimise prompts. Compress the user prompt while preserving all business context, constraints, and required output sections. Return only the optimised prompt text."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
+        prompt,
         temperature: 0.1
       })
     });
@@ -288,11 +283,15 @@ function getShortCortaveError(responseBody: string) {
 function extractOptimisedPrompt(data: CortaveResponse) {
   const candidates: Array<[string, unknown]> = [
     ["response.choices[0].message.content", data.choices?.[0]?.message?.content],
+    ["response.choices[0].text", data.choices?.[0]?.text],
+    ["response.output", typeof data.output === "string" ? data.output : undefined],
+    ["response.completion", data.completion],
+    ["response.response", data.response],
+    ["response.text", data.text],
     ["response.optimized_prompt", data.optimized_prompt],
     ["response.optimisedPrompt", data.optimisedPrompt],
     ["response.optimizedPrompt", data.optimizedPrompt],
     ["response.prompt", data.prompt],
-    ["response.output", typeof data.output === "string" ? data.output : undefined],
     ["response.data.optimized_prompt", data.data?.optimized_prompt],
     ["response.data.optimisedPrompt", data.data?.optimisedPrompt],
     ["response.data.optimizedPrompt", data.data?.optimizedPrompt],
@@ -327,17 +326,6 @@ function extractOptimisedPrompt(data: CortaveResponse) {
 }
 
 export async function POST(request: Request) {
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    return NextResponse.json(
-      {
-        error: "OPENAI_API_KEY is not configured on the server."
-      },
-      { status: 500 }
-    );
-  }
-
   const body = (await request.json()) as ActionPlanRequest;
 
   const prompt = `
@@ -363,9 +351,42 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
 `;
 
   const cortaveResult = await optimisePromptWithCortave(prompt);
-  console.log("Cortave optimisation complete before OpenAI", {
+  console.log("Cortave generation complete before fallback decision", {
     cortaveStatus: cortaveResult.status
   });
+
+  if (cortaveResult.status === "success") {
+    return NextResponse.json({
+      actionPlan: cortaveResult.prompt,
+      cortave: {
+        optimised: cortaveResult.usedCortave,
+        status: cortaveResult.status,
+        metrics: cortaveResult.metrics,
+        debug: cortaveResult.debug satisfies CortaveDebug,
+        fallbackReason: cortaveResult.error
+      },
+      cortaveStatus: cortaveResult.status
+    });
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    return NextResponse.json(
+      {
+        error: "Cortave failed and OPENAI_API_KEY is not configured for fallback.",
+        cortave: {
+          optimised: cortaveResult.usedCortave,
+          status: cortaveResult.status,
+          metrics: cortaveResult.metrics,
+          debug: cortaveResult.debug satisfies CortaveDebug,
+          fallbackReason: cortaveResult.error
+        },
+        cortaveStatus: cortaveResult.status
+      },
+      { status: 500 }
+    );
+  }
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -383,7 +404,7 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
         },
         {
           role: "user",
-          content: cortaveResult.prompt
+          content: prompt
         }
       ],
       temperature: 0.4
