@@ -29,6 +29,12 @@ type CortaveBetaDebug = {
   httpStatus: number | "skipped" | null;
   endpoint: string | null;
   message: string | null;
+  semanticGateway?: {
+    source: string | null;
+    confidence: string | null;
+    contextDocs: string | null;
+    modelFallback: string | null;
+  };
 };
 
 type CortaveResponse = {
@@ -73,8 +79,17 @@ type CortaveResponse = {
   compression_percentage?: number;
 };
 
-async function optimisePromptWithCortave(prompt: string) {
-  const cortaveUrl = process.env.CORTAVE_API_URL;
+function getSemanticGatewayHeaders(response: Response) {
+  return {
+    source: response.headers.get("x-sg-source"),
+    confidence: response.headers.get("x-sg-confidence"),
+    contextDocs: response.headers.get("x-sg-context-docs"),
+    modelFallback: response.headers.get("x-sg-model-fallback")
+  };
+}
+
+async function generateActionPlanWithCortave(prompt: string) {
+  const cortaveUrl = "https://api.semanticgateway.com/v1/chat/completions";
   const cortaveApiKeyExists = Boolean(process.env.CORTAVE_API_KEY);
 
   if (!cortaveUrl) {
@@ -85,6 +100,7 @@ async function optimisePromptWithCortave(prompt: string) {
 
     return {
       prompt,
+      actionPlan: "",
       usedCortave: false,
       status: "failed" as CortaveStatus,
       metrics: null,
@@ -108,6 +124,7 @@ async function optimisePromptWithCortave(prompt: string) {
 
     return {
       prompt,
+      actionPlan: "",
       usedCortave: false,
       status: "failed" as CortaveStatus,
       metrics: null,
@@ -134,13 +151,24 @@ async function optimisePromptWithCortave(prompt: string) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: process.env.CORTAVE_MODEL || "openai/gpt-4o-mini",
-        prompt,
-        temperature: 0.1
+        model: process.env.CORTAVE_MODEL || "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert ecosystem revenue strategist."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1200
       })
     });
 
     const responseBody = await response.text();
+    const semanticGatewayHeaders = getSemanticGatewayHeaders(response);
     console.log("Cortave response status", response.status);
 
     let data: CortaveResponse = {};
@@ -165,6 +193,7 @@ async function optimisePromptWithCortave(prompt: string) {
 
       return {
         prompt,
+        actionPlan: "",
         usedCortave: false,
         status: "failed" as CortaveStatus,
         metrics: null,
@@ -172,6 +201,7 @@ async function optimisePromptWithCortave(prompt: string) {
           endpoint: cortaveUrl,
           httpStatus: response.status,
           message: getShortCortaveError(responseBody) || `Cortave failed with status ${response.status}.`,
+          semanticGateway: semanticGatewayHeaders,
           topLevelKeys,
           optimisedPromptField: "none",
           cortaveApiKeyExists,
@@ -181,8 +211,8 @@ async function optimisePromptWithCortave(prompt: string) {
       };
     }
 
-    const extractedPrompt = extractOptimisedPrompt(data);
-    const optimisedPrompt = extractedPrompt.prompt || prompt;
+    const extractedActionPlan = extractOptimisedPrompt(data);
+    const actionPlan = extractedActionPlan.prompt;
 
     const metrics: CortaveMetrics = {
       originalTokens: data.originalTokens ?? data.original_token_count ?? data.data?.originalTokens ?? data.data?.original_token_count,
@@ -201,29 +231,31 @@ async function optimisePromptWithCortave(prompt: string) {
         data.data?.compression_percentage
     };
 
-    if (optimisedPrompt !== prompt) {
-      console.log("Using optimised prompt", {
-        field: extractedPrompt.field,
+    if (actionPlan) {
+      console.log("Using Cortave Semantic Gateway action plan", {
+        field: extractedActionPlan.field,
         topLevelKeys
       });
     } else {
       console.log("Falling back to original prompt", {
-        reason: "Cortave did not return a different optimised prompt.",
+        reason: "Cortave did not return choices[0].message.content.",
         topLevelKeys
       });
     }
 
     return {
-      prompt: optimisedPrompt,
-      usedCortave: Boolean(extractedPrompt.prompt),
-      status: extractedPrompt.prompt ? ("success" as CortaveStatus) : ("failed" as CortaveStatus),
+      prompt,
+      actionPlan,
+      usedCortave: Boolean(actionPlan),
+      status: actionPlan ? ("success" as CortaveStatus) : ("failed" as CortaveStatus),
       metrics,
       debug: {
         endpoint: cortaveUrl,
         httpStatus: response.status,
-        message: extractedPrompt.prompt ? "Cortave optimisation succeeded." : "Cortave did not return an optimised prompt field.",
+        message: actionPlan ? "Cortave Semantic Gateway generation succeeded." : "Cortave did not return choices[0].message.content.",
+        semanticGateway: semanticGatewayHeaders,
         topLevelKeys,
-        optimisedPromptField: extractedPrompt.field || "none",
+        optimisedPromptField: extractedActionPlan.field || "none",
         cortaveApiKeyExists,
         authorizationHeaderAttached
       },
@@ -240,12 +272,19 @@ async function optimisePromptWithCortave(prompt: string) {
 
     return {
       prompt,
+      actionPlan: "",
       usedCortave: false,
       status: "failed" as CortaveStatus,
       metrics: null,
       debug: {
         endpoint: cortaveUrl,
         message: error instanceof Error ? error.message : "Cortave request failed.",
+        semanticGateway: {
+          source: null,
+          confidence: null,
+          contextDocs: null,
+          modelFallback: null
+        },
         optimisedPromptField: "none",
         cortaveApiKeyExists,
         authorizationHeaderAttached: cortaveApiKeyExists
@@ -255,14 +294,15 @@ async function optimisePromptWithCortave(prompt: string) {
   }
 }
 
-function getCortaveBetaDebug(cortaveResult: Awaited<ReturnType<typeof optimisePromptWithCortave>>): CortaveBetaDebug {
+function getCortaveBetaDebug(cortaveResult: Awaited<ReturnType<typeof generateActionPlanWithCortave>>): CortaveBetaDebug {
   const httpStatus = "httpStatus" in cortaveResult.debug ? cortaveResult.debug.httpStatus : null;
 
   return {
     status: cortaveResult.status,
     httpStatus: httpStatus ?? null,
     endpoint: cortaveResult.debug.endpoint || null,
-    message: cortaveResult.debug.message || cortaveResult.error || null
+    message: cortaveResult.debug.message || cortaveResult.error || null,
+    semanticGateway: "semanticGateway" in cortaveResult.debug ? cortaveResult.debug.semanticGateway : undefined
   };
 }
 
@@ -357,11 +397,15 @@ Output exactly these sections:
 Keep it practical, executive, and specific to partner-led revenue. Avoid generic transformation language.
 `;
 
-  const cortaveResult = await optimisePromptWithCortave(prompt);
+  const cortaveResult = await generateActionPlanWithCortave(prompt);
   const cortaveDebug = getCortaveBetaDebug(cortaveResult);
   console.log("Cortave generation complete before fallback decision", {
     cortaveStatus: cortaveResult.status
   });
+
+  if (cortaveResult.status === "success" && cortaveResult.actionPlan) {
+    return NextResponse.json({ actionPlan: cortaveResult.actionPlan, cortaveDebug });
+  }
 
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -391,7 +435,7 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
         },
         {
           role: "user",
-          content: cortaveResult.status === "success" ? cortaveResult.prompt : prompt
+          content: prompt
         }
       ],
       temperature: 0.4
