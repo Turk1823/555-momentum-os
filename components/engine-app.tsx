@@ -129,7 +129,18 @@ export function EngineApp() {
     if (!stored) return;
 
     try {
-      setState({ ...initialState, ...JSON.parse(stored) });
+      const parsedState = { ...initialState, ...JSON.parse(stored) } as AppState;
+      const hasRequiredIntake = Boolean(
+        parsedState.intake?.name?.trim() &&
+        parsedState.intake?.email?.trim() &&
+        parsedState.intake?.company?.trim() &&
+        parsedState.intake?.role?.trim()
+      );
+
+      setState({
+        ...parsedState,
+        intakeComplete: parsedState.intakeComplete && hasRequiredIntake
+      });
     } catch {
       window.localStorage.removeItem("555-engine-state");
     }
@@ -149,10 +160,35 @@ export function EngineApp() {
   const updateState = (patch: Partial<AppState>) => setState((current) => ({ ...current, ...patch }));
 
   const completeIntake = (intake: UserIntake) => {
-    updateState({ intake, intakeComplete: true, email: intake.email });
+    const cleanIntake = {
+      name: intake.name.trim(),
+      email: intake.email.trim(),
+      company: intake.company.trim(),
+      role: intake.role.trim()
+    };
+
+    updateState({ intake: cleanIntake, intakeComplete: true, email: cleanIntake.email });
   };
 
   const saveAssessment = async () => {
+    const missingIntakeFields = [
+      ["name", state.intake.name],
+      ["email", state.intake.email],
+      ["company", state.intake.company],
+      ["role", state.intake.role]
+    ]
+      .filter(([, value]) => !String(value || "").trim())
+      .map(([field]) => field);
+
+    if (missingIntakeFields.length) {
+      setSaveStatus({
+        tone: "error",
+        message: `Please enter your ${missingIntakeFields.join(", ")} before saving your assessment.`
+      });
+      updateState({ intakeComplete: false });
+      return;
+    }
+
     setSaveStatus({ tone: "idle", message: "Saving assessment..." });
     setActionPlan("");
     setActionPlanStatus({ tone: "idle", message: "" });
@@ -495,10 +531,12 @@ function ResultsDashboard(props: {
             </div>
             <div className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
+                <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Required final step</p>
                 <p className="text-sm font-semibold text-navy">{props.intake.name || "Beta participant"}</p>
                 <p className="text-sm text-slate-600">{props.intake.company} {props.intake.role ? `- ${props.intake.role}` : ""}</p>
+                <p className="mt-1 text-sm text-slate-500">Save your assessment to record your score and unlock the AI action plan.</p>
               </div>
-              <Button onClick={props.onSaveAssessment}>Save assessment</Button>
+              <Button size="lg" onClick={props.onSaveAssessment}>Save assessment to record results</Button>
             </div>
             {props.saveStatus.message && (
               <p className={cn(
