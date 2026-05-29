@@ -123,25 +123,6 @@ export function EngineApp() {
     message: ""
   });
   const [actionPlan, setActionPlan] = useState("");
-  const [cortaveOptimisation, setCortaveOptimisation] = useState<{
-    optimised: boolean;
-    status: "success" | "failed" | "skipped";
-    debug?: {
-      endpoint?: string;
-      httpStatus?: number | "skipped";
-      message?: string;
-      topLevelKeys?: string[];
-      optimisedPromptField?: string;
-      cortaveApiKeyExists?: boolean;
-      authorizationHeaderAttached?: boolean;
-    };
-    metrics?: {
-      originalTokens?: number;
-      optimisedTokens?: number;
-      tokenSavings?: number;
-      compressionPercentage?: number;
-    } | null;
-  } | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("555-engine-state");
@@ -174,7 +155,6 @@ export function EngineApp() {
   const saveAssessment = async () => {
     setSaveStatus({ tone: "idle", message: "Saving assessment..." });
     setActionPlan("");
-    setCortaveOptimisation(null);
     setActionPlanStatus({ tone: "idle", message: "" });
     const result = await saveAssessmentSubmission({
       intake: state.intake,
@@ -232,48 +212,18 @@ export function EngineApp() {
       const data = (await response.json()) as {
         actionPlan?: string;
         error?: string;
-        cortave?: {
-          optimised: boolean;
-          status?: "success" | "failed" | "skipped";
-          debug?: {
-            endpoint?: string;
-            httpStatus?: number | "skipped";
-            message?: string;
-            topLevelKeys?: string[];
-            optimisedPromptField?: string;
-            cortaveApiKeyExists?: boolean;
-            authorizationHeaderAttached?: boolean;
-          };
-          metrics?: {
-            originalTokens?: number;
-            optimisedTokens?: number;
-            tokenSavings?: number;
-            compressionPercentage?: number;
-          } | null;
-        };
-        cortaveStatus?: "success" | "failed" | "skipped";
       };
 
       if (!response.ok) {
-        throw new Error(data.error || "Action plan generation failed.");
+        throw new Error("Could not generate your action plan right now. Please try again shortly.");
       }
 
       setActionPlan(data.actionPlan || "");
-      setCortaveOptimisation(
-        data.cortave
-          ? {
-              ...data.cortave,
-              status: data.cortave.status || data.cortaveStatus || "skipped"
-            }
-          : data.cortaveStatus
-            ? { optimised: data.cortaveStatus === "success", status: data.cortaveStatus, metrics: null }
-            : null
-      );
       setActionPlanStatus({ tone: "success", message: "Action plan generated." });
     } catch (error) {
       setActionPlanStatus({
         tone: "error",
-        message: error instanceof Error ? error.message : "Action plan generation failed."
+        message: error instanceof Error ? error.message : "Could not generate your action plan right now. Please try again shortly."
       });
     }
   };
@@ -373,7 +323,6 @@ export function EngineApp() {
             onGenerateActionPlan={generateActionPlan}
             actionPlanStatus={actionPlanStatus}
             actionPlan={actionPlan}
-            cortaveOptimisation={cortaveOptimisation}
           />
 
           {activeModule === "diagnostic" && <Diagnostic scores={state.scores} setScores={(scores) => updateState({ scores })} />}
@@ -505,25 +454,6 @@ function ResultsDashboard(props: {
   onGenerateActionPlan: () => Promise<void>;
   actionPlanStatus: { tone: "idle" | "success" | "error"; message: string };
   actionPlan: string;
-  cortaveOptimisation: {
-    optimised: boolean;
-    status: "success" | "failed" | "skipped";
-    debug?: {
-      endpoint?: string;
-      httpStatus?: number | "skipped";
-      message?: string;
-      topLevelKeys?: string[];
-      optimisedPromptField?: string;
-      cortaveApiKeyExists?: boolean;
-      authorizationHeaderAttached?: boolean;
-    };
-    metrics?: {
-      originalTokens?: number;
-      optimisedTokens?: number;
-      tokenSavings?: number;
-      compressionPercentage?: number;
-    } | null;
-  } | null;
 }) {
   const canGenerateActionPlan = props.saveStatus.tone === "success";
   const isGeneratingActionPlan = props.actionPlanStatus.tone === "idle" && Boolean(props.actionPlanStatus.message);
@@ -597,12 +527,9 @@ function ResultsDashboard(props: {
                   </p>
                 )}
                 {props.actionPlan && (
-                  <>
-                    <div className="whitespace-pre-wrap rounded-lg border border-teal-100 bg-white p-4 text-sm leading-6 text-slate-700">
-                      {props.actionPlan}
-                    </div>
-                    <CortaveOptimisationNote optimisation={props.cortaveOptimisation} />
-                  </>
+                  <div className="whitespace-pre-wrap rounded-lg border border-teal-100 bg-white p-4 text-sm leading-6 text-slate-700">
+                    {props.actionPlan}
+                  </div>
                 )}
               </div>
             )}
@@ -627,68 +554,6 @@ function ResultsDashboard(props: {
           </table>
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function CortaveOptimisationNote({
-  optimisation
-}: {
-  optimisation: {
-    optimised: boolean;
-    status: "success" | "failed" | "skipped";
-    debug?: {
-      endpoint?: string;
-      httpStatus?: number | "skipped";
-      message?: string;
-      topLevelKeys?: string[];
-      optimisedPromptField?: string;
-      cortaveApiKeyExists?: boolean;
-      authorizationHeaderAttached?: boolean;
-    };
-    metrics?: {
-      originalTokens?: number;
-      optimisedTokens?: number;
-      tokenSavings?: number;
-      compressionPercentage?: number;
-    } | null;
-  } | null;
-}) {
-  if (!optimisation) return null;
-
-  const metrics = [
-    optimisation.metrics?.originalTokens !== undefined ? `Original Prompt Size: ${optimisation.metrics.originalTokens}` : "",
-    optimisation.metrics?.optimisedTokens !== undefined ? `Optimised Prompt Size: ${optimisation.metrics.optimisedTokens}` : "",
-    optimisation.metrics?.compressionPercentage !== undefined ? `Estimated Token Reduction %: ${optimisation.metrics.compressionPercentage}%` : ""
-  ].filter(Boolean);
-  const statusText =
-    optimisation.status === "failed" && optimisation.debug?.message === "missing CORTAVE_API_KEY"
-      ? "failed — missing CORTAVE_API_KEY"
-      : optimisation.status === "failed"
-        ? "failed — using fallback prompt"
-        : optimisation.status;
-
-  return (
-    <div className="grid gap-1 text-xs leading-5 text-teal-700">
-      <p>Cortave status: {statusText}</p>
-      <p>Cortave HTTP status: {optimisation.debug?.httpStatus ?? "not available"}</p>
-      <p>CORTAVE_API_KEY exists: {String(Boolean(optimisation.debug?.cortaveApiKeyExists))}</p>
-      <p>Authorization header attached: {String(Boolean(optimisation.debug?.authorizationHeaderAttached))}</p>
-      <p>Available top-level response keys: {optimisation.debug?.topLevelKeys?.length ? optimisation.debug.topLevelKeys.join(", ") : "none detected"}</p>
-      <p>Optimised prompt field used: {optimisation.debug?.optimisedPromptField || "none"}</p>
-      {optimisation.optimised && (
-        <p>
-          AI generation optimised via Cortave.
-          {metrics.length > 0 ? ` ${metrics.join(" | ")}` : ""}
-        </p>
-      )}
-      {optimisation.status === "failed" && (
-        <div className="rounded-md border border-teal-100 bg-white p-2 text-slate-600">
-          <p>HTTP status code: {optimisation.debug?.httpStatus ?? "not available"}</p>
-          <p>Short error message: {optimisation.debug?.message || "No Cortave error message returned."}</p>
-          <p>Endpoint: {optimisation.debug?.endpoint || "not available"}</p>
-        </div>
-      )}
     </div>
   );
 }

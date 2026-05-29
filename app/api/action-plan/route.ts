@@ -24,16 +24,6 @@ type CortaveMetrics = {
 
 type CortaveStatus = "success" | "failed" | "skipped";
 
-type CortaveDebug = {
-  endpoint?: string;
-  httpStatus?: number | "skipped";
-  message?: string;
-  topLevelKeys?: string[];
-  optimisedPromptField?: string;
-  cortaveApiKeyExists?: boolean;
-  authorizationHeaderAttached?: boolean;
-};
-
 type CortaveResponse = {
   optimized_prompt?: string;
   optimizedPrompt?: string;
@@ -354,34 +344,12 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
     cortaveStatus: cortaveResult.status
   });
 
-  if (cortaveResult.status === "success") {
-    return NextResponse.json({
-      actionPlan: cortaveResult.prompt,
-      cortave: {
-        optimised: cortaveResult.usedCortave,
-        status: cortaveResult.status,
-        metrics: cortaveResult.metrics,
-        debug: cortaveResult.debug satisfies CortaveDebug,
-        fallbackReason: cortaveResult.error
-      },
-      cortaveStatus: cortaveResult.status
-    });
-  }
-
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
     return NextResponse.json(
       {
-        error: "Cortave failed and OPENAI_API_KEY is not configured for fallback.",
-        cortave: {
-          optimised: cortaveResult.usedCortave,
-          status: cortaveResult.status,
-          metrics: cortaveResult.metrics,
-          debug: cortaveResult.debug satisfies CortaveDebug,
-          fallbackReason: cortaveResult.error
-        },
-        cortaveStatus: cortaveResult.status
+        error: "Could not generate your action plan right now. Please try again shortly."
       },
       { status: 500 }
     );
@@ -403,7 +371,7 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
         },
         {
           role: "user",
-          content: prompt
+          content: cortaveResult.status === "success" ? cortaveResult.prompt : prompt
         }
       ],
       temperature: 0.4
@@ -423,7 +391,7 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
   if (!response.ok) {
     return NextResponse.json(
       {
-        error: data.error?.message || "OpenAI action plan generation failed."
+        error: "Could not generate your action plan right now. Please try again shortly."
       },
       { status: response.status }
     );
@@ -438,15 +406,5 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
       .join("\n\n") ||
     "";
 
-  return NextResponse.json({
-    actionPlan,
-    cortave: {
-      optimised: cortaveResult.usedCortave,
-      status: cortaveResult.status,
-      metrics: cortaveResult.metrics,
-      debug: cortaveResult.debug satisfies CortaveDebug,
-      fallbackReason: cortaveResult.error
-    },
-    cortaveStatus: cortaveResult.status
-  });
+  return NextResponse.json({ actionPlan });
 }
