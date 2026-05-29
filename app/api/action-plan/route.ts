@@ -24,6 +24,13 @@ type CortaveMetrics = {
 
 type CortaveStatus = "success" | "failed" | "skipped";
 
+type CortaveBetaDebug = {
+  status: CortaveStatus;
+  httpStatus: number | "skipped" | null;
+  endpoint: string | null;
+  message: string | null;
+};
+
 type CortaveResponse = {
   optimized_prompt?: string;
   optimizedPrompt?: string;
@@ -248,6 +255,17 @@ async function optimisePromptWithCortave(prompt: string) {
   }
 }
 
+function getCortaveBetaDebug(cortaveResult: Awaited<ReturnType<typeof optimisePromptWithCortave>>): CortaveBetaDebug {
+  const httpStatus = "httpStatus" in cortaveResult.debug ? cortaveResult.debug.httpStatus : null;
+
+  return {
+    status: cortaveResult.status,
+    httpStatus: httpStatus ?? null,
+    endpoint: cortaveResult.debug.endpoint || null,
+    message: cortaveResult.debug.message || cortaveResult.error || null
+  };
+}
+
 function getShortCortaveError(responseBody: string) {
   if (!responseBody) return "";
 
@@ -340,6 +358,7 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
 `;
 
   const cortaveResult = await optimisePromptWithCortave(prompt);
+  const cortaveDebug = getCortaveBetaDebug(cortaveResult);
   console.log("Cortave generation complete before fallback decision", {
     cortaveStatus: cortaveResult.status
   });
@@ -349,7 +368,8 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
   if (!apiKey) {
     return NextResponse.json(
       {
-        error: "Could not generate your action plan right now. Please try again shortly."
+        error: "Could not generate your action plan right now. Please try again shortly.",
+        cortaveDebug
       },
       { status: 500 }
     );
@@ -391,7 +411,8 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
   if (!response.ok) {
     return NextResponse.json(
       {
-        error: "Could not generate your action plan right now. Please try again shortly."
+        error: "Could not generate your action plan right now. Please try again shortly.",
+        cortaveDebug
       },
       { status: response.status }
     );
@@ -406,5 +427,5 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
       .join("\n\n") ||
     "";
 
-  return NextResponse.json({ actionPlan });
+  return NextResponse.json({ actionPlan, cortaveDebug });
 }
