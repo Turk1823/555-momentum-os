@@ -151,11 +151,11 @@ async function generateActionPlanWithCortave(prompt: string) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: process.env.CORTAVE_MODEL || "gpt-4o",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
-            content: "You are an expert ecosystem revenue strategist."
+            content: "You are an expert ecosystem revenue strategist. Generate clear, practical, executive-level recommendations."
           },
           {
             role: "user",
