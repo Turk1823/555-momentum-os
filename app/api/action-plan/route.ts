@@ -77,8 +77,7 @@ type CortaveResponse = {
 };
 
 async function optimisePromptWithCortave(prompt: string) {
-  const semanticGatewayUrl = "https://api.semanticgateway.com/v1/completions";
-  const cortaveUrl = process.env.CORTAVE_API_URL ? semanticGatewayUrl : undefined;
+  const cortaveUrl = process.env.CORTAVE_API_URL;
   const cortaveApiKeyExists = Boolean(process.env.CORTAVE_API_KEY);
 
   if (!cortaveUrl) {
