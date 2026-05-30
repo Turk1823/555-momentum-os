@@ -757,76 +757,74 @@ function ResultsDashboard(props: {
           </div>
         </CardContent>
       </Card>
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Category Radar</CardTitle>
-            <CardDescription>Scores are shown out of 20 for each ecosystem capability.</CardDescription>
-          </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={props.categoryScores.map((item) => ({ category: item.shortName, score: item.score }))}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="category" tick={{ fill: "#334155", fontSize: 12 }} />
-                <Radar dataKey="score" stroke="#0f9f9a" fill="#0f9f9a" fillOpacity={0.24} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Executive Summary</CardTitle>
-            <CardDescription>Capture the diagnostic and route follow-up into a review workflow.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <p className="rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-700">{props.executiveSummary}</p>
-            <div className="grid gap-3 md:grid-cols-2">
-              <Label>Primary ecosystem constraint<Select value={props.primaryConstraint} onChange={(event) => props.setPrimaryConstraint(event.target.value)}>{constraints.map((constraint) => <option key={constraint}>{constraint}</option>)}</Select></Label>
-              <Label>Email capture<Input type="email" value={props.email} onChange={(event) => props.setEmail(event.target.value)} placeholder="leader@company.com" /></Label>
+      <Card>
+        <CardHeader>
+          <CardTitle>Category Radar</CardTitle>
+          <CardDescription>Scores are shown out of 20 for each ecosystem capability.</CardDescription>
+        </CardHeader>
+        <CardContent className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart data={props.categoryScores.map((item) => ({ category: item.shortName, score: item.score }))}>
+              <PolarGrid />
+              <PolarAngleAxis dataKey="category" tick={{ fill: "#334155", fontSize: 12 }} />
+              <Radar dataKey="score" stroke="#0f9f9a" fill="#0f9f9a" fillOpacity={0.24} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Executive Summary</CardTitle>
+          <CardDescription>Capture the diagnostic and route follow-up into a review workflow.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <p className="rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-700">{props.executiveSummary}</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Label>Primary ecosystem constraint<Select value={props.primaryConstraint} onChange={(event) => props.setPrimaryConstraint(event.target.value)}>{constraints.map((constraint) => <option key={constraint}>{constraint}</option>)}</Select></Label>
+            <Label>Email capture<Input type="email" value={props.email} onChange={(event) => props.setEmail(event.target.value)} placeholder="leader@company.com" /></Label>
+          </div>
+          <div className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Required final step</p>
+              <p className="text-sm font-semibold text-navy">{props.intake.name || "Beta participant"}</p>
+              <p className="text-sm text-slate-600">{props.intake.company} {props.intake.role ? `- ${props.intake.role}` : ""}</p>
+              <p className="mt-1 text-sm text-slate-500">Save your assessment to record your score and unlock the AI action plan.</p>
             </div>
-            <div className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Required final step</p>
-                <p className="text-sm font-semibold text-navy">{props.intake.name || "Beta participant"}</p>
-                <p className="text-sm text-slate-600">{props.intake.company} {props.intake.role ? `- ${props.intake.role}` : ""}</p>
-                <p className="mt-1 text-sm text-slate-500">Save your assessment to record your score and unlock the AI action plan.</p>
-              </div>
-              <Button size="lg" onClick={props.onSaveAssessment}>Save assessment to record results</Button>
+            <Button size="lg" onClick={props.onSaveAssessment}>Save assessment to record results</Button>
+          </div>
+          {props.saveStatus.message && (
+            <p className={cn(
+              "whitespace-pre-wrap break-words rounded-md p-3 text-sm font-medium",
+              props.saveStatus.tone === "success" && "bg-teal-50 text-teal-800",
+              props.saveStatus.tone === "error" && "bg-rose-50 text-rose-700",
+              props.saveStatus.tone === "idle" && "bg-slate-50 text-slate-600"
+            )}>
+              {props.saveStatus.message}
+            </p>
+          )}
+          {canGenerateActionPlan && (
+            <div className="grid gap-3 rounded-lg border border-teal-200 bg-teal-50 p-4">
+              <p className="text-sm font-semibold text-teal-950">Your assessment is saved. Generate the next-step plan from these results.</p>
+              <Button className="w-full sm:w-fit" disabled={isGeneratingActionPlan} onClick={props.onGenerateActionPlan}>
+                <Lightbulb size={16} /> Generate My Ecosystem Revenue Action Plan
+              </Button>
+              {props.actionPlanStatus.message && (
+                <p className={cn(
+                  "whitespace-pre-wrap break-words rounded-md p-3 text-sm font-medium",
+                  props.actionPlanStatus.tone === "success" && "bg-white text-teal-800",
+                  props.actionPlanStatus.tone === "error" && "bg-rose-50 text-rose-700",
+                  props.actionPlanStatus.tone === "idle" && "bg-white text-slate-600"
+                )}>
+                  {props.actionPlanStatus.message}
+                </p>
+              )}
+              {props.actionPlan && (
+                <ActionPlanOutput actionPlan={props.actionPlan} />
+              )}
             </div>
-            {props.saveStatus.message && (
-              <p className={cn(
-                "whitespace-pre-wrap break-words rounded-md p-3 text-sm font-medium",
-                props.saveStatus.tone === "success" && "bg-teal-50 text-teal-800",
-                props.saveStatus.tone === "error" && "bg-rose-50 text-rose-700",
-                props.saveStatus.tone === "idle" && "bg-slate-50 text-slate-600"
-              )}>
-                {props.saveStatus.message}
-              </p>
-            )}
-            {canGenerateActionPlan && (
-              <div className="grid gap-3 rounded-lg border border-teal-200 bg-teal-50 p-4">
-                <p className="text-sm font-semibold text-teal-950">Your assessment is saved. Generate the next-step plan from these results.</p>
-                <Button className="w-full sm:w-fit" disabled={isGeneratingActionPlan} onClick={props.onGenerateActionPlan}>
-                  <Lightbulb size={16} /> Generate My Ecosystem Revenue Action Plan
-                </Button>
-                {props.actionPlanStatus.message && (
-                  <p className={cn(
-                    "whitespace-pre-wrap break-words rounded-md p-3 text-sm font-medium",
-                    props.actionPlanStatus.tone === "success" && "bg-white text-teal-800",
-                    props.actionPlanStatus.tone === "error" && "bg-rose-50 text-rose-700",
-                    props.actionPlanStatus.tone === "idle" && "bg-white text-slate-600"
-                  )}>
-                    {props.actionPlanStatus.message}
-                  </p>
-                )}
-                {props.actionPlan && (
-                  <ActionPlanOutput actionPlan={props.actionPlan} />
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader><CardTitle>Category Heatmap</CardTitle><CardDescription>Use the heatmap to spot maturity gaps and resource allocation priorities.</CardDescription></CardHeader>
         <CardContent className="overflow-x-auto">
