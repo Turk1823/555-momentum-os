@@ -110,6 +110,30 @@ const modules = [
 
 type ModuleId = (typeof modules)[number]["id"];
 
+function getRevenueOpportunity(totalScore: number, lowest: ReturnType<typeof getExtremes>["lowest"]) {
+  if (totalScore <= 40) {
+    return {
+      range: "\u00a3500k - \u00a32.5M annually",
+      assumption: "Low maturity profile: resolving core strategy, activation, and co-sell gaps could unlock a larger improvement range.",
+      reason: `${lowest.name} is the lowest-scoring category at ${lowest.score}/20, suggesting revenue is being constrained by foundational ecosystem operating gaps.`
+    };
+  }
+
+  if (totalScore <= 80) {
+    return {
+      range: "\u00a3250k - \u00a31.2M annually",
+      assumption: "Medium maturity profile: improving the weakest category and making partner-led motions more repeatable could unlock a moderate improvement range.",
+      reason: `${lowest.name} is the main bottleneck at ${lowest.score}/20, so the opportunity likely sits in better execution consistency, attribution, and partner activation.`
+    };
+  }
+
+  return {
+    range: "\u00a3100k - \u00a3500k annually",
+    assumption: "High maturity profile: the opportunity is more optimisation-focused, driven by marginal gains in velocity, partner productivity, and repeatability.",
+    reason: `${lowest.name} remains the relative constraint at ${lowest.score}/20, indicating room to tune the system even if the core revenue engine is already mature.`
+  };
+}
+
 export function EngineApp() {
   const [started, setStarted] = useState(false);
   const [activeModule, setActiveModule] = useState<ModuleId>("diagnostic");
@@ -493,6 +517,7 @@ function ResultsDashboard(props: {
 }) {
   const canGenerateActionPlan = props.saveStatus.tone === "success";
   const isGeneratingActionPlan = props.actionPlanStatus.tone === "idle" && Boolean(props.actionPlanStatus.message);
+  const revenueOpportunity = getRevenueOpportunity(props.totalScore, props.lowest);
 
   return (
     <div className="grid gap-6">
@@ -502,6 +527,26 @@ function ResultsDashboard(props: {
         <Card><CardHeader><CardDescription>Weakest category</CardDescription><CardTitle>{props.lowest.shortName}</CardTitle></CardHeader></Card>
         <Card><CardHeader><CardDescription>Strongest category</CardDescription><CardTitle>{props.highest.shortName}</CardTitle></CardHeader></Card>
       </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Estimated Revenue Opportunity</CardTitle>
+          <CardDescription>This is a directional estimate based on your ecosystem maturity profile, not a financial forecast.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[0.8fr_1fr_1fr]">
+          <div className="rounded-lg bg-teal-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Opportunity range</p>
+            <p className="mt-2 text-2xl font-semibold text-navy">{revenueOpportunity.range}</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Key assumption</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{revenueOpportunity.assumption}</p>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Reason this opportunity exists</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{revenueOpportunity.reason}</p>
+          </div>
+        </CardContent>
+      </Card>
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card>
           <CardHeader>
