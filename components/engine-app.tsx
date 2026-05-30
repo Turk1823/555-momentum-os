@@ -332,7 +332,7 @@ function ActionPlanOutput({ actionPlan }: { actionPlan: string }) {
           </div>
           <a
             className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
-            href="https://calendly.com/arysconsultants/online-meeting-1"
+            href="https://calendly.com/arysconsultants-info?lid=4e9ezwkqillw&utm_medium=email&utm_source=braze&utm_campaign=EM_Trial_User+Welcome&utm_content=user_url_text"
             target="_blank"
             rel="noreferrer"
           >
