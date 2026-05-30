@@ -134,6 +134,216 @@ function getRevenueOpportunity(totalScore: number, lowest: ReturnType<typeof get
   };
 }
 
+function cleanActionPlanText(value: string) {
+  return value
+    .replace(/\*\*/g, "")
+    .replace(/^#+\s*/gm, "")
+    .replace(/^\s*[-*]\s*/gm, "")
+    .trim();
+}
+
+function getActionPlanSection(actionPlan: string, title: string) {
+  const sectionTitles = ["Executive Summary", "Top 3 Priority Actions", "Full Action Plan", "Book a Review CTA"];
+  const escapedTitle = title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const startMatch = actionPlan.match(new RegExp(`(?:^|\\n)\\s*(?:#+\\s*)?(?:\\d+\\.\\s*)?${escapedTitle}\\s*:?(?:\\n|$)`, "i"));
+
+  if (!startMatch || startMatch.index === undefined) return "";
+
+  const start = startMatch.index + startMatch[0].length;
+  const nextHeadingPattern = sectionTitles
+    .filter((sectionTitle) => sectionTitle !== title)
+    .map((sectionTitle) => sectionTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+  const nextMatch = actionPlan.slice(start).match(new RegExp(`\\n\\s*(?:#+\\s*)?(?:\\d+\\.\\s*)?(?:${nextHeadingPattern})\\s*:?`, "i"));
+  const end = nextMatch?.index === undefined ? actionPlan.length : start + nextMatch.index;
+
+  return cleanActionPlanText(actionPlan.slice(start, end));
+}
+
+function getFieldValue(block: string, label: string, nextLabels: string[]) {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedNextLabels = nextLabels.map((nextLabel) => nextLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const pattern = escapedNextLabels
+    ? new RegExp(`${escapedLabel}\\s*:?\\s*([\\s\\S]*?)(?=\\n\\s*(?:${escapedNextLabels})\\s*:?|$)`, "i")
+    : new RegExp(`${escapedLabel}\\s*:?\\s*([\\s\\S]*)`, "i");
+  const match = block.match(pattern);
+
+  return cleanActionPlanText(match?.[1] || "");
+}
+
+function splitPriorityBlocks(section: string) {
+  const blocks: string[] = [];
+  const matches = [...section.matchAll(/(?:^|\n)\s*(?=(?:Priority\s*)?(?:[1-3][.)]|Action\s*[1-3]|Priority Action\s*[1-3])\b)/gi)];
+
+  if (matches.length) {
+    matches.forEach((match, index) => {
+      const start = match.index ?? 0;
+      const end = matches[index + 1]?.index ?? section.length;
+      const block = section.slice(start, end).trim();
+      if (block) blocks.push(block);
+    });
+  }
+
+  if (blocks.length) return blocks.slice(0, 3);
+
+  return section
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function parsePriorityActions(section: string) {
+  return splitPriorityBlocks(section).map((block, index) => {
+    const lines = block
+      .split("\n")
+      .map((line) => cleanActionPlanText(line.replace(/^(?:Priority\s*)?(?:[1-3][.)]|Action\s*[1-3]|Priority Action\s*[1-3])\s*:?\s*/i, "")))
+      .filter(Boolean);
+    const titleLine = lines.find((line) => !/^(Impact level|Why it matters|Recommended next action)\s*:?/i.test(line)) || `Priority ${index + 1}`;
+    const impact = getFieldValue(block, "Impact level", ["Why it matters", "Recommended next action"]) || "High";
+    const whyItMatters = getFieldValue(block, "Why it matters", ["Recommended next action"]) || block;
+    const nextAction = getFieldValue(block, "Recommended next action", []) || "Prioritise this action in the next operating cycle.";
+
+    return {
+      title: titleLine.replace(/^Priority title\s*:\s*/i, ""),
+      impact,
+      whyItMatters,
+      nextAction
+    };
+  });
+}
+
+function getTimelineSection(section: string, label: "30" | "60" | "90") {
+  const patterns = {
+    "30": "(?:30[- ]?day|days?\\s*1\\s*[-–]\\s*30)",
+    "60": "(?:60[- ]?day|days?\\s*31\\s*[-–]\\s*60)",
+    "90": "(?:90[- ]?day|days?\\s*61\\s*[-–]\\s*90)"
+  };
+  const startMatch = section.match(new RegExp(`(?:^|\\n)\\s*(?:#+\\s*)?(?:[-*]\\s*)?${patterns[label]}[^\\n]*\\n?`, "i"));
+
+  if (!startMatch || startMatch.index === undefined) return "";
+
+  const start = startMatch.index + startMatch[0].length;
+  const nextMatch = section.slice(start).match(new RegExp(`\\n\\s*(?:#+\\s*)?(?:[-*]\\s*)?(?:${Object.values(patterns).join("|")})[^\\n]*`, "i"));
+  const end = nextMatch?.index === undefined ? section.length : start + nextMatch.index;
+
+  return cleanActionPlanText(section.slice(start, end));
+}
+
+function parseActionPlan(actionPlan: string) {
+  const executiveSummary = getActionPlanSection(actionPlan, "Executive Summary") || cleanActionPlanText(actionPlan);
+  const prioritySection = getActionPlanSection(actionPlan, "Top 3 Priority Actions");
+  const fullActionPlan = getActionPlanSection(actionPlan, "Full Action Plan");
+  const priorityActions = parsePriorityActions(prioritySection);
+  const timeline = {
+    thirty: getTimelineSection(fullActionPlan, "30"),
+    sixty: getTimelineSection(fullActionPlan, "60"),
+    ninety: getTimelineSection(fullActionPlan, "90")
+  };
+
+  return {
+    executiveSummary,
+    priorityActions,
+    fullActionPlan,
+    timeline
+  };
+}
+
+function TextBlock({ text }: { text: string }) {
+  const lines = cleanActionPlanText(text)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return (
+    <div className="grid gap-2 text-sm leading-6 text-slate-700">
+      {lines.map((line, index) => (
+        <p key={`${line}-${index}`}>{line}</p>
+      ))}
+    </div>
+  );
+}
+
+function ActionPlanOutput({ actionPlan }: { actionPlan: string }) {
+  const parsed = parseActionPlan(actionPlan);
+  const timelineItems = [
+    { title: "30-Day Recommendations", text: parsed.timeline.thirty },
+    { title: "60-Day Recommendations", text: parsed.timeline.sixty },
+    { title: "90-Day Recommendations", text: parsed.timeline.ninety }
+  ];
+  const hasTimeline = timelineItems.some((item) => item.text);
+
+  return (
+    <div className="grid gap-4">
+      <div className="rounded-lg border border-teal-100 bg-white p-4">
+        <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Executive Summary</p>
+        <TextBlock text={parsed.executiveSummary} />
+      </div>
+
+      <div className="grid gap-3">
+        <p className="text-sm font-semibold text-teal-950">Top 3 Priority Actions</p>
+        <div className="grid gap-3 lg:grid-cols-3">
+          {parsed.priorityActions.map((priority, index) => (
+            <div key={`${priority.title}-${index}`} className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <h3 className="text-sm font-semibold leading-5 text-navy">{priority.title}</h3>
+                <span className="shrink-0 rounded-full bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700">{priority.impact}</span>
+              </div>
+              <div className="grid gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Why it matters</p>
+                  <TextBlock text={priority.whyItMatters} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Recommended next action</p>
+                  <TextBlock text={priority.nextAction} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-3">
+        <p className="text-sm font-semibold text-teal-950">Full Action Plan</p>
+        {hasTimeline ? (
+          <div className="grid gap-3 lg:grid-cols-3">
+            {timelineItems.map((item) => (
+              <div key={item.title} className="rounded-lg border border-slate-200 bg-white p-4">
+                <h3 className="mb-3 text-sm font-semibold text-navy">{item.title}</h3>
+                <TextBlock text={item.text || "No specific recommendation provided for this phase."} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            <TextBlock text={parsed.fullActionPlan || actionPlan} />
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-navy">Need help implementing these recommendations?</h3>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Book a MomentumOS Review Session to discuss your results, identify the biggest revenue bottleneck, and prioritise next steps.
+            </p>
+          </div>
+          <a
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+            href="https://calendly.com/arysconsultants/online-meeting-1"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Book a Review <ArrowRight size={16} />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function EngineApp() {
   const [started, setStarted] = useState(false);
   const [activeModule, setActiveModule] = useState<ModuleId>("diagnostic");
@@ -610,29 +820,7 @@ function ResultsDashboard(props: {
                   </p>
                 )}
                 {props.actionPlan && (
-                  <div className="grid gap-3">
-                    <div className="whitespace-pre-wrap rounded-lg border border-teal-100 bg-white p-4 text-sm leading-6 text-slate-700">
-                      {props.actionPlan}
-                    </div>
-                    <div className="rounded-lg border border-slate-200 bg-white p-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <h3 className="text-base font-semibold text-navy">Need help implementing these recommendations?</h3>
-                          <p className="mt-1 text-sm leading-6 text-slate-600">
-                            Book a MomentumOS Review Session to discuss your results, identify the biggest revenue bottleneck, and prioritise next steps.
-                          </p>
-                        </div>
-                        <a
-                          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
-                          href="https://ablink.send.calendly.com/ls/click?upn=u001.-2FpFZHOmNsCfytAyhc9roxKhVBL9BrLhdaKBkW5voIfvsIVTLQM9m6QNOiVHP4hpeVxPkDcErugwx97ON-2Fe9Vg0NGHujOx-2Fxbwsnw6nsL2erxFUM3DrTdcwhM0e7CW6Frz9J2q2UlmUf6SngtpCnDWrW1xH06rDPOJLIB-2BnvjeGYXCfcwGrAjytb96dv7N55G-2Bd62ubvgnD3-2FPi-2FJhgklvx5JCCYlh3lV0zxmC2N886U-3DuAet_xAS4fg9a1FH0D-2Ff-2BXZtv2CAJlD9uM4hNQCL-2BfG-2BGCzAtod4ryDICf8bn6WkizrRFeRCETodkyCpwIX-2FiZazOSa7lKQJ-2FRSRAIGZqpALPpQTvVKN-2B1-2FIE6EsHqgv4AoSyZdJz9-2FSLnDJsi3DNqN2gTxedpT2gACvvZcfWMp9gWHBAutdc5jqB9ktcwnXVcFSKXRvEA0zv3PTLJedOogLP4mI4pHwGMfAgr94aXpr2c2bWku7kauqZDRBmwKA7jD5Uv1WX1wC-2BY2M6r-2B2Dv-2BSeV4TSrktLPrU6X7heeleJav8DuJJM1KzMZxdtFPKM-2BpkhmHGOiLwAC0yvmFPLcAlZZlYU8azkccPS2z4RhZz0dWYf6930FMCTvqX1jynzt8ZvFZOFUpS7-2FUMXerIxwvd8vRHAysEP1KLmzSrWXFjiz0tbpJXgCCxB-2Fbb-2Bn26Ggdj60JM33QW3rnriSkezXi6tVkZoQiHGN8CW5df4Gm93EmFlWblmbZHDjH-2BjDNIacnbPChyn7j-2FB3xCqIZoUhOA-2B5PEYuf4Tg5iN-2Fmel2-2BI5FAVl81nc42Q1aKkSgJtAF2y3qJTqLzPTQtmJV-2FgqAKfCJ0J6GtVjgTwQA5lW9pUnTgXJDq5kERARvBwhrUzth-2BvloMvw230cbaUhrsViFcBP6Sc3u-2BtHsDZLnEgpdFunNTLHPsg2Jg5tD5RllQFvWsY1Ca3XKv0NTeyYqjEfjxDyEzpzxFzaEqwRKnVOlIzDx-2Bfju5p2YEMsHcbR3PJmK8czNL3hOoN9mefbKPwKLFDRzg-3D-3D"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Book a Review <ArrowRight size={16} />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
+                  <ActionPlanOutput actionPlan={props.actionPlan} />
                 )}
               </div>
             )}
