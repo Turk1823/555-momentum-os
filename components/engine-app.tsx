@@ -565,8 +565,28 @@ function ResultsDashboard(props: {
                   </p>
                 )}
                 {props.actionPlan && (
-                  <div className="whitespace-pre-wrap rounded-lg border border-teal-100 bg-white p-4 text-sm leading-6 text-slate-700">
-                    {props.actionPlan}
+                  <div className="grid gap-3">
+                    <div className="whitespace-pre-wrap rounded-lg border border-teal-100 bg-white p-4 text-sm leading-6 text-slate-700">
+                      {props.actionPlan}
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-white p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h3 className="text-base font-semibold text-navy">Need help implementing these recommendations?</h3>
+                          <p className="mt-1 text-sm leading-6 text-slate-600">
+                            Book a MomentumOS Review Session to discuss your results, identify the biggest revenue bottleneck, and prioritise next steps.
+                          </p>
+                        </div>
+                        <a
+                          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+                          href="https://calendly.com/arysconsultants/online-meeting-1"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Book a Review <ArrowRight size={16} />
+                        </a>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

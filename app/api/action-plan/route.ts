@@ -142,7 +142,8 @@ async function generateActionPlanWithCortave(prompt: string) {
         messages: [
           {
             role: "system",
-            content: "You are an expert ecosystem revenue strategist. Generate clear, practical, executive-level recommendations."
+            content:
+              "You are an expert ecosystem revenue strategist. Generate clear, practical, executive-level recommendations in the exact structure requested by the user."
           },
           {
             role: "user",
@@ -362,12 +363,29 @@ Assessment context:
 - Company: ${body.companyContext?.company || "Not provided"}
 - User role: ${body.companyContext?.role || "Not provided"}
 
-Output exactly these sections:
-1. Executive summary
-2. Top 3 ecosystem risks
-3. Fastest revenue momentum lever
-4. 30/60/90-day action plan
-5. Recommended next service option
+Output exactly these sections in this order, using clear Markdown-style headings:
+
+1. Executive Summary
+- Write 3-5 sentences.
+- Explain the overall ecosystem maturity.
+- Name the biggest bottleneck.
+- Name the biggest opportunity.
+- Explain the commercial implication for revenue, pipeline, activation, or co-sell momentum.
+
+2. Top 3 Priority Actions
+For each priority action, include:
+- Priority title
+- Impact level: High, Medium, or Low
+- Why it matters
+- Recommended next action
+
+3. Full Action Plan
+- Give practical 30/60/90-day recommendations.
+- Tie each recommendation to the user's maturity level, lowest-scoring category, selected bottleneck, and category scores.
+- Keep the plan specific to partner-led revenue execution.
+
+4. Book a Review CTA
+- Include one concise sentence recommending a MomentumOS Review Session for implementation support.
 
 Keep it practical, executive, and specific to partner-led revenue. Avoid generic transformation language.
 `;
@@ -404,7 +422,7 @@ Keep it practical, executive, and specific to partner-led revenue. Avoid generic
         {
           role: "system",
           content:
-            "You are a senior ecosystem revenue strategist. You write concise executive action plans for SaaS, AI, MSP, SI, and technology partner ecosystems."
+            "You are a senior ecosystem revenue strategist. You write concise executive action plans for SaaS, AI, MSP, SI, and technology partner ecosystems in the exact structure requested by the user."
         },
         {
           role: "user",
