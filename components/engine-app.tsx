@@ -416,8 +416,12 @@ export function EngineApp() {
       role: intake.role.trim()
     };
 
-    updateState({ intake: cleanIntake, intakeComplete: true, email: cleanIntake.email });
-    await saveAssessment(cleanIntake);
+    const saved = await saveAssessment(cleanIntake);
+    if (saved) {
+      updateState({ intake: cleanIntake, intakeComplete: true, email: cleanIntake.email });
+    }
+
+    return saved;
   };
 
   const saveAssessment = async (intakeOverride?: UserIntake) => {
@@ -436,7 +440,7 @@ export function EngineApp() {
         tone: "error",
         message: `Please enter your ${missingIntakeFields.join(", ")} before saving your assessment.`
       });
-      return;
+      return false;
     }
 
     setSaveStatus({ tone: "idle", message: "Saving assessment..." });
@@ -469,6 +473,7 @@ export function EngineApp() {
       executiveSummary
     });
     setSaveStatus({ tone: result.ok ? "success" : "error", message: result.message });
+    return result.ok;
   };
 
   const generateActionPlan = async () => {
@@ -625,13 +630,11 @@ export function EngineApp() {
             setPrimaryConstraint={(primaryConstraint) => updateState({ primaryConstraint })}
             email={state.email}
             setEmail={(email) => updateState({ email })}
-            onSaveAssessment={saveAssessment}
             saveStatus={saveStatus}
             intake={state.intake}
             onGenerateActionPlan={generateActionPlan}
             actionPlanStatus={actionPlanStatus}
             actionPlan={actionPlan}
-            onDownloadReport={exportPdf}
           />
 
           {activeModule === "diagnostic" && <Diagnostic scores={state.scores} setScores={(scores) => updateState({ scores })} />}
@@ -749,7 +752,7 @@ function BenchmarkPreviewGate({
   highest: ReturnType<typeof getExtremes>["highest"];
   initialIntake: UserIntake;
   lowest: ReturnType<typeof getExtremes>["lowest"];
-  onUnlock: (intake: UserIntake) => Promise<void>;
+  onUnlock: (intake: UserIntake) => Promise<boolean>;
   saveStatus: { tone: "idle" | "success" | "error"; message: string };
   totalScore: number;
 }) {
@@ -835,7 +838,7 @@ function BenchmarkPreviewGate({
               </p>
             )}
             <Button size="lg" disabled={isSubmitting} onClick={submit}>
-              {isSubmitting ? "Unlocking..." : "Unlock Full Report"} <ArrowRight size={18} />
+              {isSubmitting ? "Saving..." : "Save Assessment to Record Results"} <ArrowRight size={18} />
             </Button>
           </div>
         </CardContent>
@@ -855,13 +858,11 @@ function ResultsDashboard(props: {
   setPrimaryConstraint: (value: string) => void;
   email: string;
   setEmail: (value: string) => void;
-  onSaveAssessment: () => Promise<void>;
   saveStatus: { tone: "idle" | "success" | "error"; message: string };
   intake: UserIntake;
   onGenerateActionPlan: () => Promise<void>;
   actionPlanStatus: { tone: "idle" | "success" | "error"; message: string };
   actionPlan: string;
-  onDownloadReport: () => void;
 }) {
   const canGenerateActionPlan = props.saveStatus.tone === "success";
   const isGeneratingActionPlan = props.actionPlanStatus.tone === "idle" && Boolean(props.actionPlanStatus.message);
@@ -921,15 +922,6 @@ function ResultsDashboard(props: {
             <Label>Primary ecosystem constraint<Select value={props.primaryConstraint} onChange={(event) => props.setPrimaryConstraint(event.target.value)}>{constraints.map((constraint) => <option key={constraint}>{constraint}</option>)}</Select></Label>
             <Label>Email capture<Input type="email" value={props.email} onChange={(event) => props.setEmail(event.target.value)} placeholder="leader@company.com" /></Label>
           </div>
-          <div className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Required final step</p>
-              <p className="text-sm font-semibold text-navy">{props.intake.name || "Beta participant"}</p>
-              <p className="text-sm text-slate-600">{props.intake.company} {props.intake.role ? `- ${props.intake.role}` : ""}</p>
-              <p className="mt-1 text-sm text-slate-500">Save your assessment to record your score and unlock the AI action plan.</p>
-            </div>
-            <Button size="lg" onClick={props.onSaveAssessment}>Save assessment to record results</Button>
-          </div>
           {props.saveStatus.message && (
             <p className={cn(
               "whitespace-pre-wrap break-words rounded-md p-3 text-sm font-medium",
@@ -961,20 +953,6 @@ function ResultsDashboard(props: {
               )}
             </div>
           )}
-          <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_auto] lg:items-center">
-            <div>
-              <p className="text-sm font-semibold text-navy">Want to continuously track ecosystem revenue performance over time?</p>
-              <p className="mt-1 text-sm leading-6 text-slate-600">
-                Continue from this one-off diagnostic into MomentumOS for ongoing tracking, benchmarking, forecasting, and executive reporting.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button variant="secondary" onClick={props.onDownloadReport}><Download size={16} /> Download report</Button>
-              <Button onClick={() => window.open("https://momentumos-platform.vercel.app", "_blank", "noopener,noreferrer")}>
-                <Rocket size={16} /> Explore MomentumOS
-              </Button>
-            </div>
-          </div>
         </CardContent>
       </Card>
       <Card>
