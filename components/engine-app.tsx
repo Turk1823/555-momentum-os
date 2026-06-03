@@ -737,6 +737,17 @@ function AssessmentQuestionStep({
         </CardContent>
       </Card>
       <Diagnostic scores={scores} setScores={setScores} />
+      <Card className="border-teal-100 bg-white">
+        <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-navy">Ready to view your benchmark preview?</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">Your score is calculated from the 20 answers above. No email is required to see the preview.</p>
+          </div>
+          <Button size="lg" onClick={onComplete}>
+            Complete Assessment and View Benchmark Preview <ArrowRight size={18} />
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
