@@ -3,6 +3,8 @@ import type { CategoryKey, UserIntake } from "@/lib/types";
 export type AssessmentSubmission = {
   intake: UserIntake;
   emailCapture: string;
+  leadGateCompleted?: boolean;
+  leadGateCompletedAt?: string;
   totalScore: number;
   maturityLevel: string;
   lowestCategory: {

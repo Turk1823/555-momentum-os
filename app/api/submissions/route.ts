@@ -30,6 +30,12 @@ type MomentumOSSubmissionRow = {
     primary_constraint: string;
     category_scores: AssessmentSubmission["categoryScores"];
     executive_summary: string;
+    lead_gate_completed?: boolean;
+    lead_gate_completed_at?: string;
+    lead_first_name?: string;
+    lead_email?: string;
+    lead_company?: string;
+    lead_role?: string;
   };
 };
 
@@ -128,7 +134,13 @@ export async function POST(request: Request) {
       highest_category_score: submission.highestCategory.score,
       primary_constraint: submission.primaryConstraint,
       category_scores: submission.categoryScores,
-      executive_summary: submission.executiveSummary
+      executive_summary: submission.executiveSummary,
+      lead_gate_completed: submission.leadGateCompleted ?? true,
+      lead_gate_completed_at: submission.leadGateCompletedAt || submittedAt,
+      lead_first_name: submission.intake.name.trim(),
+      lead_email: submission.intake.email.trim(),
+      lead_company: submission.intake.company.trim(),
+      lead_role: submission.intake.role.trim()
     }
   };
 

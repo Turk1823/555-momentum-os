@@ -134,6 +134,20 @@ function getRevenueOpportunity(totalScore: number, lowest: ReturnType<typeof get
   };
 }
 
+function getBenchmarkPositionLabel(totalScore: number) {
+  if (totalScore >= 81) return "Ecosystem Operating System";
+  if (totalScore >= 61) return "Revenue Ecosystem";
+  if (totalScore >= 41) return "Structured Ecosystem";
+  if (totalScore >= 21) return "Emerging Ecosystem";
+  return "Reactive Ecosystem";
+}
+
+function getRevenueVelocityRiskLabel(totalScore: number, lowest: ReturnType<typeof getExtremes>["lowest"]) {
+  if (totalScore >= 75 && lowest.score >= 14) return "Low";
+  if (totalScore >= 55 && lowest.score >= 10) return "Medium";
+  return "High";
+}
+
 function cleanActionPlanText(value: string) {
   return value
     .replace(/\*\*/g, "")
@@ -346,6 +360,7 @@ function ActionPlanOutput({ actionPlan }: { actionPlan: string }) {
 
 export function EngineApp() {
   const [started, setStarted] = useState(false);
+  const [assessmentComplete, setAssessmentComplete] = useState(false);
   const [activeModule, setActiveModule] = useState<ModuleId>("diagnostic");
   const [state, setState] = useState<AppState>(initialState);
   const [saveStatus, setSaveStatus] = useState<{ tone: "idle" | "success" | "error"; message: string }>({
@@ -393,7 +408,7 @@ export function EngineApp() {
 
   const updateState = (patch: Partial<AppState>) => setState((current) => ({ ...current, ...patch }));
 
-  const completeIntake = (intake: UserIntake) => {
+  const completeIntake = async (intake: UserIntake) => {
     const cleanIntake = {
       name: intake.name.trim(),
       email: intake.email.trim(),
@@ -402,14 +417,16 @@ export function EngineApp() {
     };
 
     updateState({ intake: cleanIntake, intakeComplete: true, email: cleanIntake.email });
+    await saveAssessment(cleanIntake);
   };
 
-  const saveAssessment = async () => {
+  const saveAssessment = async (intakeOverride?: UserIntake) => {
+    const activeIntake = intakeOverride || state.intake;
     const missingIntakeFields = [
-      ["name", state.intake.name],
-      ["email", state.intake.email],
-      ["company", state.intake.company],
-      ["role", state.intake.role]
+      ["first name", activeIntake.name],
+      ["work email", activeIntake.email],
+      ["company", activeIntake.company],
+      ["role / title", activeIntake.role]
     ]
       .filter(([, value]) => !String(value || "").trim())
       .map(([field]) => field);
@@ -419,7 +436,6 @@ export function EngineApp() {
         tone: "error",
         message: `Please enter your ${missingIntakeFields.join(", ")} before saving your assessment.`
       });
-      updateState({ intakeComplete: false });
       return;
     }
 
@@ -427,8 +443,10 @@ export function EngineApp() {
     setActionPlan("");
     setActionPlanStatus({ tone: "idle", message: "" });
     const result = await saveAssessmentSubmission({
-      intake: state.intake,
-      emailCapture: state.email,
+      intake: activeIntake,
+      emailCapture: activeIntake.email,
+      leadGateCompleted: true,
+      leadGateCompletedAt: new Date().toISOString(),
       totalScore,
       maturityLevel,
       lowestCategory: {
@@ -525,14 +543,6 @@ export function EngineApp() {
     );
   }
 
-  if (!state.intakeComplete) {
-    return (
-      <main className="min-h-screen bg-slate-50">
-        <IntakeForm initialIntake={state.intake} onSubmit={completeIntake} />
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
@@ -542,13 +552,41 @@ export function EngineApp() {
             <h1 className="text-2xl font-semibold tracking-normal text-navy">The 5/5/5 Ecosystem Revenue Engine</h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={copySummary}><ClipboardCopy size={16} /> Copy executive summary</Button>
-            <Button variant="secondary" onClick={exportPdf}><Download size={16} /> Export summary as PDF</Button>
-            <Button onClick={() => window.open("mailto:info@arysconsultants.com?subject=Book ecosystem review", "_blank")}><Mail size={16} /> Book ecosystem review</Button>
+            {state.intakeComplete && (
+              <>
+                <Button variant="secondary" onClick={copySummary}><ClipboardCopy size={16} /> Copy executive summary</Button>
+                <Button variant="secondary" onClick={exportPdf}><Download size={16} /> Download report</Button>
+                <Button onClick={() => window.open("mailto:info@arysconsultants.com?subject=Book ecosystem review", "_blank")}><Mail size={16} /> Book ecosystem review</Button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
+      {!state.intakeComplete ? (
+        <section className="mx-auto grid max-w-5xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+          {!assessmentComplete ? (
+            <AssessmentQuestionStep
+              scores={state.scores}
+              setScores={(scores) => updateState({ scores })}
+              totalScore={totalScore}
+              onComplete={() => {
+                setAssessmentComplete(true);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            />
+          ) : (
+            <BenchmarkPreviewGate
+              highest={highest}
+              initialIntake={state.intake}
+              lowest={lowest}
+              onUnlock={completeIntake}
+              saveStatus={saveStatus}
+              totalScore={totalScore}
+            />
+          )}
+        </section>
+      ) : (
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[280px_1fr] lg:px-8">
         <aside className="h-fit rounded-lg border border-slate-200 bg-white p-3 shadow-soft">
           <div className="mb-3 grid grid-cols-2 gap-2">
@@ -593,6 +631,7 @@ export function EngineApp() {
             onGenerateActionPlan={generateActionPlan}
             actionPlanStatus={actionPlanStatus}
             actionPlan={actionPlan}
+            onDownloadReport={exportPdf}
           />
 
           {activeModule === "diagnostic" && <Diagnostic scores={state.scores} setScores={(scores) => updateState({ scores })} />}
@@ -603,6 +642,7 @@ export function EngineApp() {
           {activeModule === "recommendations" && <Recommendations lowestKey={lowest.key} primaryConstraint={state.primaryConstraint} />}
         </section>
       </div>
+      )}
     </main>
   );
 }
@@ -663,47 +703,144 @@ function Landing({ onStart }: { onStart: () => void }) {
   );
 }
 
-function IntakeForm({ initialIntake, onSubmit }: { initialIntake: UserIntake; onSubmit: (intake: UserIntake) => void }) {
+function AssessmentQuestionStep({
+  onComplete,
+  scores,
+  setScores,
+  totalScore
+}: {
+  onComplete: () => void;
+  scores: Record<number, number>;
+  setScores: (scores: Record<number, number>) => void;
+  totalScore: number;
+}) {
+  return (
+    <div className="grid gap-6">
+      <Card className="border-teal-100 bg-white">
+        <CardHeader>
+          <CardTitle>Complete the 555 Momentum Assessment</CardTitle>
+          <CardDescription>
+            Answer the 20 questions first. Your benchmark preview appears immediately after completion, before any email capture.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Live score</p>
+            <p className="mt-1 text-2xl font-semibold text-navy">{totalScore}/100</p>
+          </div>
+          <Button size="lg" onClick={onComplete}>
+            Complete Assessment & View Benchmark Preview <ArrowRight size={18} />
+          </Button>
+        </CardContent>
+      </Card>
+      <Diagnostic scores={scores} setScores={setScores} />
+    </div>
+  );
+}
+
+function BenchmarkPreviewGate({
+  highest,
+  initialIntake,
+  lowest,
+  onUnlock,
+  saveStatus,
+  totalScore
+}: {
+  highest: ReturnType<typeof getExtremes>["highest"];
+  initialIntake: UserIntake;
+  lowest: ReturnType<typeof getExtremes>["lowest"];
+  onUnlock: (intake: UserIntake) => Promise<void>;
+  saveStatus: { tone: "idle" | "success" | "error"; message: string };
+  totalScore: number;
+}) {
   const [intake, setIntake] = useState<UserIntake>(initialIntake);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const update = (key: keyof UserIntake, value: string) => setIntake((current) => ({ ...current, [key]: value }));
 
-  const submit = () => {
+  const submit = async () => {
     if (!intake.name.trim() || !intake.email.trim() || !intake.company.trim() || !intake.role.trim()) {
-      setError("Please complete all fields before starting the assessment.");
+      setError("Please complete all fields to unlock your full report.");
       return;
     }
 
     setError("");
-    onSubmit(intake);
+    setIsSubmitting(true);
+    await onUnlock(intake);
+    setIsSubmitting(false);
   };
+  const previewItems = [
+    { label: "Momentum Score", value: `${totalScore}/100`, text: "Your current ecosystem revenue maturity score." },
+    { label: "Benchmark Position", value: getBenchmarkPositionLabel(totalScore), text: "Directional maturity band from your 555 score." },
+    { label: "Primary Constraint", value: lowest.shortName, text: "The lowest-scoring capability limiting momentum." },
+    { label: "Revenue Velocity Risk", value: getRevenueVelocityRiskLabel(totalScore, lowest), text: "A directional signal based on score and bottleneck strength." },
+    { label: "Top Strength", value: highest.shortName, text: "The strongest capability in your current ecosystem profile." }
+  ];
 
   return (
-    <section className="mx-auto grid min-h-screen max-w-6xl items-center gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8">
-      <div>
-        <p className="mb-4 text-xs font-bold uppercase tracking-[0.26em] text-teal-700">Beta access</p>
-        <h1 className="text-balance text-4xl font-semibold tracking-normal text-navy sm:text-5xl">Tell us where to send your ecosystem benchmark.</h1>
-        <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">
-          Capture your details once, then complete the 5/5/5 diagnostic. Your assessment score and bottleneck data can be saved to Supabase for the beta analytics workspace.
-        </p>
-      </div>
-      <Card>
+    <div className="grid gap-6">
+      <Card className="border-teal-100 bg-white">
         <CardHeader>
-          <CardTitle>Start your ecosystem assessment</CardTitle>
-          <CardDescription>These fields power beta follow-up, reporting, and future admin analytics.</CardDescription>
+          <CardTitle>Your Ecosystem Revenue Benchmark Preview</CardTitle>
+          <CardDescription>Instant directional insight from your current 555 Momentum Assessment responses.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Label>Name<Input value={intake.name} onChange={(event) => update("name", event.target.value)} placeholder="Alex Morgan" /></Label>
-            <Label>Email<Input type="email" value={intake.email} onChange={(event) => update("email", event.target.value)} placeholder="alex@company.com" /></Label>
-            <Label>Company<Input value={intake.company} onChange={(event) => update("company", event.target.value)} placeholder="Company name" /></Label>
-            <Label>Role<Input value={intake.role} onChange={(event) => update("role", event.target.value)} placeholder="VP Partnerships" /></Label>
-          </div>
-          {error && <p className="rounded-md bg-rose-50 p-3 text-sm font-medium text-rose-700">{error}</p>}
-          <Button size="lg" onClick={submit}>Continue to diagnostic <ArrowRight size={18} /></Button>
+        <CardContent className="grid gap-4 md:grid-cols-5">
+          {previewItems.map((item) => (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4" key={item.label}>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{item.label}</p>
+              <p className="mt-2 text-xl font-semibold text-navy">{item.value}</p>
+              <p className="mt-2 text-xs leading-5 text-slate-600">{item.text}</p>
+            </div>
+          ))}
         </CardContent>
       </Card>
-    </section>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Unlock Your Full Executive Report</CardTitle>
+          <CardDescription>Submit your details to reveal the complete benchmark report and save your assessment.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-lg border border-teal-100 bg-teal-50 p-4">
+            <p className="text-sm font-semibold text-teal-950">Your full report includes:</p>
+            <ul className="mt-3 grid gap-2 text-sm leading-6 text-teal-950">
+              {[
+                "Full benchmark breakdown",
+                "90-day action plan",
+                "Revenue velocity forecast",
+                "Executive recommendations",
+                "MomentumOS dashboard preview"
+              ].map((item) => (
+                <li className="flex gap-2" key={item}><Check className="mt-1 shrink-0" size={16} />{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Label>First name<Input value={intake.name} onChange={(event) => update("name", event.target.value)} placeholder="Alex" /></Label>
+              <Label>Work email<Input type="email" value={intake.email} onChange={(event) => update("email", event.target.value)} placeholder="alex@company.com" /></Label>
+              <Label>Company<Input value={intake.company} onChange={(event) => update("company", event.target.value)} placeholder="Company name" /></Label>
+              <Label>Role / title<Input value={intake.role} onChange={(event) => update("role", event.target.value)} placeholder="VP Partnerships" /></Label>
+            </div>
+            <p className="text-xs leading-5 text-slate-500">We&apos;ll send your results and may follow up with relevant MomentumOS updates. No spam.</p>
+            {error && <p className="rounded-md bg-rose-50 p-3 text-sm font-medium text-rose-700">{error}</p>}
+            {saveStatus.message && (
+              <p className={cn(
+                "whitespace-pre-wrap break-words rounded-md p-3 text-sm font-medium",
+                saveStatus.tone === "success" && "bg-teal-50 text-teal-800",
+                saveStatus.tone === "error" && "bg-rose-50 text-rose-700",
+                saveStatus.tone === "idle" && "bg-slate-50 text-slate-600"
+              )}>
+                {saveStatus.message}
+              </p>
+            )}
+            <Button size="lg" disabled={isSubmitting} onClick={submit}>
+              {isSubmitting ? "Unlocking..." : "Unlock Full Report"} <ArrowRight size={18} />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -724,6 +861,7 @@ function ResultsDashboard(props: {
   onGenerateActionPlan: () => Promise<void>;
   actionPlanStatus: { tone: "idle" | "success" | "error"; message: string };
   actionPlan: string;
+  onDownloadReport: () => void;
 }) {
   const canGenerateActionPlan = props.saveStatus.tone === "success";
   const isGeneratingActionPlan = props.actionPlanStatus.tone === "idle" && Boolean(props.actionPlanStatus.message);
@@ -823,6 +961,20 @@ function ResultsDashboard(props: {
               )}
             </div>
           )}
+          <div className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <p className="text-sm font-semibold text-navy">Want to continuously track ecosystem revenue performance over time?</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Continue from this one-off diagnostic into MomentumOS for ongoing tracking, benchmarking, forecasting, and executive reporting.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="secondary" onClick={props.onDownloadReport}><Download size={16} /> Download report</Button>
+              <Button onClick={() => window.open("https://momentumos-platform.vercel.app", "_blank", "noopener,noreferrer")}>
+                <Rocket size={16} /> Explore MomentumOS
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
       <Card>
