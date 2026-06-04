@@ -70,6 +70,7 @@ export type UserIntake = {
 export type AppState = {
   intake: UserIntake;
   intakeComplete: boolean;
+  assessmentId?: string;
   scores: Record<number, number>;
   primaryConstraint: string;
   email: string;

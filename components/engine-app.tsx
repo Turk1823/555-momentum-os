@@ -278,7 +278,25 @@ function TextBlock({ text }: { text: string }) {
   );
 }
 
-function ActionPlanOutput({ actionPlan }: { actionPlan: string }) {
+function ActionPlanOutput({
+  actionPlan,
+  assessmentId,
+  intake,
+  maturityLevel,
+  momentumScore,
+  primaryConstraint,
+  strongestCategory,
+  weakestCategory
+}: {
+  actionPlan: string;
+  assessmentId?: string;
+  intake: UserIntake;
+  maturityLevel: string;
+  momentumScore: number;
+  primaryConstraint: string;
+  strongestCategory: string;
+  weakestCategory: string;
+}) {
   const parsed = parseActionPlan(actionPlan);
   const timelineItems = [
     { title: "30-Day Recommendations", text: parsed.timeline.thirty },
@@ -336,7 +354,15 @@ function ActionPlanOutput({ actionPlan }: { actionPlan: string }) {
         )}
       </div>
 
-      <MomentumOSBetaAccessCta />
+      <MomentumOSBetaAccessCta
+        assessmentId={assessmentId}
+        intake={intake}
+        maturityLevel={maturityLevel}
+        momentumScore={momentumScore}
+        primaryConstraint={primaryConstraint}
+        strongestCategory={strongestCategory}
+        weakestCategory={weakestCategory}
+      />
 
       <div className="rounded-lg border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -360,14 +386,66 @@ function ActionPlanOutput({ actionPlan }: { actionPlan: string }) {
   );
 }
 
-function MomentumOSBetaAccessCta() {
-  const [requested, setRequested] = useState(false);
+function MomentumOSBetaAccessCta({
+  assessmentId,
+  intake,
+  maturityLevel,
+  momentumScore,
+  primaryConstraint,
+  strongestCategory,
+  weakestCategory
+}: {
+  assessmentId?: string;
+  intake: UserIntake;
+  maturityLevel: string;
+  momentumScore: number;
+  primaryConstraint: string;
+  strongestCategory: string;
+  weakestCategory: string;
+}) {
+  const [status, setStatus] = useState<{ tone: "idle" | "success" | "error"; message: string }>({ tone: "idle", message: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const requestAccess = async () => {
+    setIsSubmitting(true);
+    setStatus({ tone: "idle", message: "Requesting..." });
+
+    try {
+      const response = await fetch("/api/beta-access-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          firstName: intake.name,
+          workEmail: intake.email,
+          company: intake.company,
+          roleTitle: intake.role,
+          assessmentId,
+          momentumScore,
+          primaryConstraint,
+          maturityLevel,
+          strongestCategory,
+          weakestCategory,
+          createdAt: new Date().toISOString()
+        })
+      });
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Sorry, we couldn't record your request. Please try again.");
+      }
+
+      setStatus({ tone: "success", message: "Thanks. Your request has been received." });
+    } catch {
+      setStatus({ tone: "error", message: "Sorry, we couldn't record your request. Please try again." });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="grid gap-2">
-      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-amber-800">
-        BETA CTA LOADED
-      </div>
       <Card className="border-teal-100 bg-teal-50">
         <CardHeader>
           <CardTitle>Continue Beyond The Assessment</CardTitle>
@@ -397,14 +475,21 @@ function MomentumOSBetaAccessCta() {
               </ul>
             </div>
             <p className="font-semibold">MomentumOS is currently available via private beta.</p>
-            {requested && (
-              <p className="rounded-md bg-white p-3 text-sm font-medium text-teal-800">
-                Thanks. Your request has been received.
+            {status.message && (
+              <p
+                className={cn(
+                  "rounded-md bg-white p-3 text-sm font-medium",
+                  status.tone === "success" && "text-teal-800",
+                  status.tone === "error" && "text-rose-700",
+                  status.tone === "idle" && "text-slate-600"
+                )}
+              >
+                {status.message}
               </p>
             )}
           </div>
-          <Button className="w-full sm:w-fit" disabled={requested} onClick={() => setRequested(true)} size="lg">
-            <Rocket size={18} /> {requested ? "Request Recorded" : "Request MomentumOS Beta Access"}
+          <Button className="w-full sm:w-fit" disabled={isSubmitting || status.tone === "success"} onClick={requestAccess} size="lg">
+            <Rocket size={18} /> {isSubmitting ? "Requesting..." : status.tone === "success" ? "Request Recorded" : "Request MomentumOS Beta Access"}
           </Button>
         </CardContent>
       </Card>
@@ -527,6 +612,9 @@ export function EngineApp() {
       executiveSummary
     });
     setSaveStatus({ tone: result.ok ? "success" : "error", message: result.message });
+    if (result.ok && result.rowId) {
+      updateState({ assessmentId: result.rowId });
+    }
     return result.ok;
   };
 
@@ -683,10 +771,11 @@ export function EngineApp() {
             primaryConstraint={state.primaryConstraint}
             setPrimaryConstraint={(primaryConstraint) => updateState({ primaryConstraint })}
             email={state.email}
-            setEmail={(email) => updateState({ email })}
-            saveStatus={saveStatus}
-            intake={state.intake}
-            onGenerateActionPlan={generateActionPlan}
+                setEmail={(email) => updateState({ email })}
+                saveStatus={saveStatus}
+                assessmentId={state.assessmentId}
+                intake={state.intake}
+                onGenerateActionPlan={generateActionPlan}
             actionPlanStatus={actionPlanStatus}
             actionPlan={actionPlan}
           />
@@ -924,6 +1013,7 @@ function ResultsDashboard(props: {
   email: string;
   setEmail: (value: string) => void;
   saveStatus: { tone: "idle" | "success" | "error"; message: string };
+  assessmentId?: string;
   intake: UserIntake;
   onGenerateActionPlan: () => Promise<void>;
   actionPlanStatus: { tone: "idle" | "success" | "error"; message: string };
@@ -1014,7 +1104,16 @@ function ResultsDashboard(props: {
                 </p>
               )}
               {props.actionPlan && (
-                <ActionPlanOutput actionPlan={props.actionPlan} />
+                <ActionPlanOutput
+                  actionPlan={props.actionPlan}
+                  assessmentId={props.assessmentId}
+                  intake={props.intake}
+                  maturityLevel={props.maturityLevel}
+                  momentumScore={props.totalScore}
+                  primaryConstraint={props.primaryConstraint}
+                  strongestCategory={props.highest.name}
+                  weakestCategory={props.lowest.name}
+                />
               )}
             </div>
           )}

@@ -39,6 +39,7 @@ export async function saveAssessmentSubmission(submission: AssessmentSubmission)
   const data = (await response.json().catch(() => null)) as {
     message?: string;
     error?: string;
+    rowId?: string;
   } | null;
 
   if (!response.ok) {
@@ -50,6 +51,7 @@ export async function saveAssessmentSubmission(submission: AssessmentSubmission)
 
   return {
     ok: true,
-    message: data?.message || "Your assessment has been saved."
+    message: data?.message || "Your assessment has been saved.",
+    rowId: data?.rowId
   };
 }
