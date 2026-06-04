@@ -336,6 +336,8 @@ function ActionPlanOutput({ actionPlan }: { actionPlan: string }) {
         )}
       </div>
 
+      <MomentumOSBetaAccessCta />
+
       <div className="rounded-lg border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -354,6 +356,58 @@ function ActionPlanOutput({ actionPlan }: { actionPlan: string }) {
           </a>
         </div>
       </div>
+    </div>
+  );
+}
+
+function MomentumOSBetaAccessCta() {
+  const [requested, setRequested] = useState(false);
+
+  return (
+    <div className="grid gap-2">
+      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-amber-800">
+        BETA CTA LOADED
+      </div>
+      <Card className="border-teal-100 bg-teal-50">
+        <CardHeader>
+          <CardTitle>Continue Beyond The Assessment</CardTitle>
+          <CardDescription>
+            MomentumOS transforms this assessment into an ongoing ecosystem revenue operating system.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="grid gap-3 text-sm leading-6 text-teal-950">
+            <p>You have established your first ecosystem revenue baseline.</p>
+            <div>
+              <p className="font-semibold">MomentumOS helps organisations:</p>
+              <ul className="mt-2 grid gap-1">
+                {[
+                  "Track ecosystem momentum over time",
+                  "Monitor revenue velocity risk",
+                  "Benchmark ecosystem performance",
+                  "Build executive reporting",
+                  "Forecast ecosystem revenue outcomes",
+                  "Identify revenue constraints before they impact growth"
+                ].map((item) => (
+                  <li className="flex gap-2" key={item}>
+                    <Check className="mt-1 shrink-0" size={15} />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <p className="font-semibold">MomentumOS is currently available via private beta.</p>
+            {requested && (
+              <p className="rounded-md bg-white p-3 text-sm font-medium text-teal-800">
+                Thanks. Your request has been received.
+              </p>
+            )}
+          </div>
+          <Button className="w-full sm:w-fit" disabled={requested} onClick={() => setRequested(true)} size="lg">
+            <Rocket size={18} /> {requested ? "Request Recorded" : "Request MomentumOS Beta Access"}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
