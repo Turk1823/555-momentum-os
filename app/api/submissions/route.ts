@@ -16,7 +16,7 @@ type MomentumOSSubmissionRow = {
   cosell_score: number;
   economics_score: number;
   velocity_score: number;
-  raw_scores: Record<number, number>;
+  raw_scores: Record<number, number | null>;
   metadata: {
     submission_id: string;
     submitted_at: string;
@@ -30,6 +30,7 @@ type MomentumOSSubmissionRow = {
     primary_constraint: string;
     category_scores: AssessmentSubmission["categoryScores"];
     executive_summary: string;
+    benchmark_answers?: AssessmentSubmission["benchmarkAnswers"];
     lead_gate_completed?: boolean;
     lead_gate_completed_at?: string;
     lead_first_name?: string;
@@ -135,6 +136,7 @@ export async function POST(request: Request) {
       primary_constraint: submission.primaryConstraint,
       category_scores: submission.categoryScores,
       executive_summary: submission.executiveSummary,
+      benchmark_answers: submission.benchmarkAnswers,
       lead_gate_completed: submission.leadGateCompleted ?? true,
       lead_gate_completed_at: submission.leadGateCompletedAt || submittedAt,
       lead_first_name: submission.intake.name.trim(),

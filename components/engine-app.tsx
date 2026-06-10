@@ -28,6 +28,7 @@ import {
   YAxis,
   Tooltip
 } from "recharts";
+import { MomentumOSLogo } from "@/components/momentumos-logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,13 +36,17 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { categories, constraints, defaultPlannerTasks, questions, scoreLabels } from "@/lib/content";
+import { benchmarkQuestions, constraints, defaultPlannerTasks, questions, scoreLabels } from "@/lib/content";
 import { getCategoryScores, getExecutiveSummary, getExtremes, getMaturityLevel, getRecommendations, getTotalScore } from "@/lib/scoring";
 import { saveAssessmentSubmission } from "@/lib/supabase/submissions";
-import type { AppState, CoSellEntry, RevenueMetrics, StrategySnapshot, UserIntake } from "@/lib/types";
+import type { AppState, BenchmarkAnswers, BenchmarkQuestion, CoSellEntry, RevenueMetrics, StrategySnapshot, UserIntake } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
-const defaultScores = Object.fromEntries(questions.map((question) => [question.id, 3]));
+const defaultScores = Object.fromEntries(questions.map((question) => [question.id, null])) as Record<number, number | null>;
+const defaultBenchmarkAnswers: BenchmarkAnswers = {
+  partnerRevenueShare: "",
+  annualEcosystemRevenue: ""
+};
 
 const defaultStrategy: StrategySnapshot = {
   customerSegment: "Mid-market SaaS and AI buyers",
@@ -76,6 +81,7 @@ const initialState: AppState = {
   },
   intakeComplete: false,
   scores: defaultScores,
+  benchmarkAnswers: defaultBenchmarkAnswers,
   primaryConstraint: "Activation Bottleneck",
   email: "",
   strategy: defaultStrategy,
@@ -146,6 +152,18 @@ function getRevenueVelocityRiskLabel(totalScore: number, lowest: ReturnType<type
   if (totalScore >= 75 && lowest.score >= 14) return "Low";
   if (totalScore >= 55 && lowest.score >= 10) return "Medium";
   return "High";
+}
+
+function isAssessmentComplete(scores: Record<number, number | null>) {
+  return questions.every((question) => scores[question.id] !== null);
+}
+
+function areBenchmarkAnswersComplete(answers: BenchmarkAnswers) {
+  return benchmarkQuestions.every((question) => Boolean(answers[question.key]));
+}
+
+function getOptionLabel(question: BenchmarkQuestion, answers: BenchmarkAnswers) {
+  return answers[question.key] || "Not provided";
 }
 
 function cleanActionPlanText(value: string) {
@@ -526,7 +544,10 @@ export function EngineApp() {
       );
 
       setState({
+        ...initialState,
         ...parsedState,
+        scores: { ...defaultScores, ...(parsedState.scores || {}) },
+        benchmarkAnswers: { ...defaultBenchmarkAnswers, ...(parsedState.benchmarkAnswers || {}) },
         intakeComplete: parsedState.intakeComplete && hasRequiredIntake
       });
     } catch {
@@ -609,6 +630,7 @@ export function EngineApp() {
         score: category.score
       })),
       scores: state.scores,
+      benchmarkAnswers: state.benchmarkAnswers,
       executiveSummary
     });
     setSaveStatus({ tone: result.ok ? "success" : "error", message: result.message });
@@ -694,9 +716,12 @@ export function EngineApp() {
     <main className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-teal-700">Workspace</p>
-            <h1 className="text-2xl font-semibold tracking-normal text-navy">The 5/5/5 Ecosystem Revenue Engine</h1>
+          <div className="grid gap-3">
+            <MomentumOSLogo className="max-w-[240px] sm:max-w-[280px]" width={280} />
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#17889a]">Executive ecosystem revenue diagnostic</p>
+              <h1 className="text-2xl font-semibold tracking-normal text-navy">The 5/5/5 Ecosystem Revenue Engine</h1>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             {state.intakeComplete && (
@@ -714,9 +739,10 @@ export function EngineApp() {
         <section className="mx-auto grid max-w-5xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
           {!assessmentComplete ? (
             <AssessmentQuestionStep
+              benchmarkAnswers={state.benchmarkAnswers}
+              setBenchmarkAnswers={(benchmarkAnswers) => updateState({ benchmarkAnswers })}
               scores={state.scores}
               setScores={(scores) => updateState({ scores })}
-              totalScore={totalScore}
               onComplete={() => {
                 setAssessmentComplete(true);
                 window.scrollTo({ top: 0, behavior: "smooth" });
@@ -724,6 +750,7 @@ export function EngineApp() {
             />
           ) : (
             <BenchmarkPreviewGate
+              benchmarkAnswers={state.benchmarkAnswers}
               highest={highest}
               initialIntake={state.intake}
               lowest={lowest}
@@ -767,6 +794,7 @@ export function EngineApp() {
             categoryScores={categoryScores}
             lowest={lowest}
             highest={highest}
+            benchmarkAnswers={state.benchmarkAnswers}
             executiveSummary={executiveSummary}
             primaryConstraint={state.primaryConstraint}
             setPrimaryConstraint={(primaryConstraint) => updateState({ primaryConstraint })}
@@ -789,6 +817,11 @@ export function EngineApp() {
         </section>
       </div>
       )}
+      <footer className="border-t border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl justify-center px-4 py-8 sm:px-6 lg:px-8">
+          <MomentumOSLogo className="max-w-[180px] opacity-90" width={180} />
+        </div>
+      </footer>
     </main>
   );
 }
@@ -803,7 +836,8 @@ function Landing({ onStart }: { onStart: () => void }) {
       <section className="border-b border-slate-200">
         <div className="mx-auto grid min-h-[88vh] max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
           <div className="max-w-3xl">
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.26em] text-teal-700">Premium ecosystem diagnostic</p>
+            <MomentumOSLogo className="mb-8 max-w-[260px] sm:max-w-[320px]" width={320} />
+            <p className="mb-4 text-xs font-bold uppercase tracking-[0.26em] text-[#17889a]">Premium ecosystem diagnostic</p>
             <h1 className="text-balance text-5xl font-semibold tracking-normal text-navy sm:text-6xl">The 5/5/5 Ecosystem Revenue Engine</h1>
             <p className="mt-6 max-w-2xl text-xl leading-8 text-slate-600">Diagnose ecosystem friction. Activate partners faster. Build repeatable partner-led revenue momentum.</p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -850,43 +884,80 @@ function Landing({ onStart }: { onStart: () => void }) {
 }
 
 function AssessmentQuestionStep({
+  benchmarkAnswers,
   onComplete,
   scores,
-  setScores,
-  totalScore
+  setBenchmarkAnswers,
+  setScores
 }: {
+  benchmarkAnswers: BenchmarkAnswers;
   onComplete: () => void;
-  scores: Record<number, number>;
-  setScores: (scores: Record<number, number>) => void;
-  totalScore: number;
+  scores: Record<number, number | null>;
+  setBenchmarkAnswers: (answers: BenchmarkAnswers) => void;
+  setScores: (scores: Record<number, number | null>) => void;
 }) {
+  const answeredCount = questions.filter((question) => scores[question.id] !== null).length;
+  const canContinue = isAssessmentComplete(scores) && areBenchmarkAnswersComplete(benchmarkAnswers);
+
   return (
     <div className="grid gap-6">
       <Card className="border-teal-100 bg-white">
         <CardHeader>
-          <CardTitle>Complete the 555 Momentum Assessment</CardTitle>
+          <CardTitle>Complete the MomentumOS Diagnostic</CardTitle>
           <CardDescription>
-            Answer the 20 questions first. Your benchmark preview appears immediately after completion, before any email capture.
+            Complete each assessment statement, then add two ecosystem revenue benchmark inputs before viewing the executive results
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Live score</p>
-            <p className="mt-1 text-2xl font-semibold text-navy">{totalScore}/100</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#17889a]">Assessment progress</p>
+            <p className="mt-1 text-2xl font-semibold text-navy">{answeredCount}/{questions.length} statements complete</p>
+            <div className="mt-3 max-w-xs">
+              <Progress value={(answeredCount / questions.length) * 100} />
+            </div>
           </div>
-          <Button size="lg" onClick={onComplete}>
+          <Button disabled={!canContinue} size="lg" onClick={onComplete}>
             Complete Assessment & View Benchmark Preview <ArrowRight size={18} />
           </Button>
         </CardContent>
       </Card>
+
       <Diagnostic scores={scores} setScores={setScores} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ecosystem revenue benchmark inputs</CardTitle>
+          <CardDescription>
+            These two inputs improve segmentation, benchmarking, and future MomentumOS reporting without changing your Momentum Score
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          {benchmarkQuestions.map((question) => (
+            <Label key={question.key}>
+              {question.label}
+              <Select
+                value={benchmarkAnswers[question.key]}
+                onChange={(event) => setBenchmarkAnswers({ ...benchmarkAnswers, [question.key]: event.target.value })}
+              >
+                <option value="">Select one option</option>
+                {question.options.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            </Label>
+          ))}
+        </CardContent>
+      </Card>
+
       <Card className="border-teal-100 bg-white">
         <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-navy">Ready to view your benchmark preview?</p>
-            <p className="mt-1 text-sm leading-6 text-slate-600">Your score is calculated from the 20 answers above. No email is required to see the preview.</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">Your score is calculated from the 20 assessment statements above. No email is required to see the preview.</p>
           </div>
-          <Button size="lg" onClick={onComplete}>
+          <Button disabled={!canContinue} size="lg" onClick={onComplete}>
             Complete Assessment and View Benchmark Preview <ArrowRight size={18} />
           </Button>
         </CardContent>
@@ -896,6 +967,7 @@ function AssessmentQuestionStep({
 }
 
 function BenchmarkPreviewGate({
+  benchmarkAnswers,
   highest,
   initialIntake,
   lowest,
@@ -903,6 +975,7 @@ function BenchmarkPreviewGate({
   saveStatus,
   totalScore
 }: {
+  benchmarkAnswers: BenchmarkAnswers;
   highest: ReturnType<typeof getExtremes>["highest"];
   initialIntake: UserIntake;
   lowest: ReturnType<typeof getExtremes>["lowest"];
@@ -947,6 +1020,21 @@ function BenchmarkPreviewGate({
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{item.label}</p>
               <p className="mt-2 text-xl font-semibold text-navy">{item.value}</p>
               <p className="mt-2 text-xs leading-5 text-slate-600">{item.text}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ecosystem revenue benchmark profile</CardTitle>
+          <CardDescription>These qualification answers are saved with the assessment for future benchmarking and platform intelligence</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          {benchmarkQuestions.map((question) => (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4" key={question.key}>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{question.label}</p>
+              <p className="mt-2 text-base font-semibold text-navy">{getOptionLabel(question, benchmarkAnswers)}</p>
             </div>
           ))}
         </CardContent>
@@ -1007,6 +1095,7 @@ function ResultsDashboard(props: {
   categoryScores: ReturnType<typeof getCategoryScores>;
   lowest: ReturnType<typeof getExtremes>["lowest"];
   highest: ReturnType<typeof getExtremes>["highest"];
+  benchmarkAnswers: BenchmarkAnswers;
   executiveSummary: string;
   primaryConstraint: string;
   setPrimaryConstraint: (value: string) => void;
@@ -1025,12 +1114,42 @@ function ResultsDashboard(props: {
 
   return (
     <div className="grid gap-6">
+      <Card className="border-teal-100 bg-white">
+        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="grid gap-3">
+            <MomentumOSLogo className="max-w-[200px]" width={200} />
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#17889a]">Executive results</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">You have completed the diagnostic. Here is what the framework has identified.</p>
+            </div>
+          </div>
+          <div className="rounded-lg border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-950">
+            <p className="font-semibold">Revenue velocity implication</p>
+            <p className="mt-1">{getRevenueVelocityRiskLabel(props.totalScore, props.lowest)} risk based on current score and primary constraint</p>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-4">
         <Card><CardHeader><CardDescription>Overall maturity</CardDescription><CardTitle className="text-3xl">{props.totalScore}/100</CardTitle></CardHeader></Card>
         <Card><CardHeader><CardDescription>Maturity level</CardDescription><CardTitle className="text-teal-700">{props.maturityLevel}</CardTitle></CardHeader></Card>
-        <Card><CardHeader><CardDescription>Weakest category</CardDescription><CardTitle>{props.lowest.shortName}</CardTitle></CardHeader></Card>
-        <Card><CardHeader><CardDescription>Strongest category</CardDescription><CardTitle>{props.highest.shortName}</CardTitle></CardHeader></Card>
+        <Card><CardHeader><CardDescription>Biggest constraint</CardDescription><CardTitle>{props.lowest.shortName}</CardTitle></CardHeader></Card>
+        <Card><CardHeader><CardDescription>Strongest capability</CardDescription><CardTitle>{props.highest.shortName}</CardTitle></CardHeader></Card>
       </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Ecosystem revenue benchmarks</CardTitle>
+          <CardDescription>Qualification signals captured alongside the diagnostic for future benchmarking and executive reporting</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          {benchmarkQuestions.map((question) => (
+            <div className="rounded-lg bg-slate-50 p-4" key={question.key}>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{question.label}</p>
+              <p className="mt-2 text-base font-semibold text-navy">{getOptionLabel(question, props.benchmarkAnswers)}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Estimated Revenue Opportunity</CardTitle>
@@ -1141,24 +1260,74 @@ function ResultsDashboard(props: {
   );
 }
 
-function Diagnostic({ scores, setScores }: { scores: Record<number, number>; setScores: (scores: Record<number, number>) => void }) {
+function Diagnostic({
+  scores,
+  setScores
+}: {
+  scores: Record<number, number | null>;
+  setScores: (scores: Record<number, number | null>) => void;
+}) {
+  const completedCount = questions.filter((question) => scores[question.id] !== null).length;
+
   return (
     <Card>
-      <CardHeader><CardTitle>20-Question Ecosystem Maturity Diagnostic</CardTitle><CardDescription>Score each question from 1 to 5. Results update automatically.</CardDescription></CardHeader>
-      <CardContent className="grid gap-6">
-        {categories.map((category) => (
-          <div key={category.key} className="grid gap-3 rounded-lg border border-slate-200 p-4">
-            <div><h3 className="font-semibold text-navy">{category.name}</h3><p className="text-sm text-slate-600">{category.description}</p></div>
-            {questions.filter((question) => question.category === category.key).map((question) => (
-              <div key={question.id} className="grid gap-2 rounded-md bg-slate-50 p-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <p className="text-sm font-medium text-slate-800">{question.id}. {question.question}</p>
-                  <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-teal-700">{scores[question.id]}/5</span>
-                </div>
-                <input aria-label={question.question} type="range" min="1" max="5" value={scores[question.id]} onChange={(event) => setScores({ ...scores, [question.id]: Number(event.target.value) })} className="accent-teal-600" />
-                <p className="text-xs text-slate-500">{scoreLabels[scores[question.id] as keyof typeof scoreLabels]}</p>
+      <CardHeader>
+        <CardTitle>Executive maturity diagnostic</CardTitle>
+        <CardDescription>
+          Respond to each assessment statement using the anchored format provided. The diagnostic framework is revealed after completion
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-5">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#17889a]">Statement progress</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">{completedCount} of {questions.length} assessment statements completed</p>
+            </div>
+            <div className="min-w-[180px]">
+              <Progress value={(completedCount / questions.length) * 100} />
+            </div>
+          </div>
+        </div>
+        {questions.map((question, index) => (
+          <div key={question.id} className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#17889a]">
+                  Assessment statement {index + 1} of {questions.length}
+                </p>
+                <p className="mt-2 text-base font-semibold leading-7 text-navy">{question.statement}</p>
               </div>
-            ))}
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                {question.responseType === "agreement" ? "Maturity scale" : question.responseType === "binary" ? "Yes / No" : "Anchored range"}
+              </span>
+            </div>
+
+            <div className={cn("grid gap-2", question.options.length > 3 ? "md:grid-cols-2 xl:grid-cols-5" : "sm:grid-cols-2")}>
+              {question.options.map((option) => {
+                const isSelected = scores[question.id] === option.score;
+
+                return (
+                  <button
+                    key={`${question.id}-${option.label}`}
+                    type="button"
+                    onClick={() => setScores({ ...scores, [question.id]: option.score })}
+                    className={cn(
+                      "rounded-xl border px-4 py-3 text-left text-sm font-medium transition",
+                      isSelected
+                        ? "border-[#17889a] bg-[#17889a]/10 text-navy shadow-sm"
+                        : "border-slate-200 bg-slate-50 text-slate-700 hover:border-[#17889a]/40 hover:bg-white"
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {scores[question.id] !== null && question.responseType === "agreement" && (
+              <p className="text-xs text-slate-500">{scoreLabels[scores[question.id] as keyof typeof scoreLabels]}</p>
+            )}
           </div>
         ))}
       </CardContent>

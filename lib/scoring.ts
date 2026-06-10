@@ -1,16 +1,16 @@
 import { categories, questions, recommendationMap } from "@/lib/content";
 import type { CategoryKey } from "@/lib/types";
 
-export function getCategoryScores(scores: Record<number, number>) {
+export function getCategoryScores(scores: Record<number, number | null>) {
   return categories.map((category) => {
     const categoryQuestions = questions.filter((question) => question.category === category.key);
-    const score = categoryQuestions.reduce((sum, question) => sum + (scores[question.id] || 1), 0);
+    const score = categoryQuestions.reduce((sum, question) => sum + (scores[question.id] ?? 0), 0);
     return { ...category, score };
   });
 }
 
-export function getTotalScore(scores: Record<number, number>) {
-  return questions.reduce((sum, question) => sum + (scores[question.id] || 1), 0);
+export function getTotalScore(scores: Record<number, number | null>) {
+  return questions.reduce((sum, question) => sum + (scores[question.id] ?? 0), 0);
 }
 
 export function getMaturityLevel(score: number) {
@@ -21,18 +21,18 @@ export function getMaturityLevel(score: number) {
   return "Ecosystem Operating System";
 }
 
-export function getExtremes(scores: Record<number, number>) {
+export function getExtremes(scores: Record<number, number | null>) {
   const categoryScores = getCategoryScores(scores);
   const lowest = [...categoryScores].sort((a, b) => a.score - b.score)[0];
   const highest = [...categoryScores].sort((a, b) => b.score - a.score)[0];
   return { lowest, highest };
 }
 
-export function getExecutiveSummary(scores: Record<number, number>, primaryConstraint: string) {
+export function getExecutiveSummary(scores: Record<number, number | null>, primaryConstraint: string) {
   const total = getTotalScore(scores);
   const level = getMaturityLevel(total);
   const { lowest, highest } = getExtremes(scores);
-  return `Your ecosystem scores ${total}/100, placing it at the ${level} stage. The strongest area is ${highest.name}, while ${lowest.name} is the primary improvement zone. The current constraint is ${primaryConstraint.toLowerCase()}, so the next move is to focus resources on fewer, higher-fit partner motions that can create measurable revenue proof.`;
+  return `You have completed the diagnostic. Momentum Score is ${total}/100, placing the organisation at the ${level} stage. The strongest capability is ${highest.name}, the biggest constraint is ${lowest.name}, and the immediate priority is to address ${primaryConstraint.toLowerCase()} with fewer, higher-fit partner motions that can create measurable revenue proof.`;
 }
 
 export function getRecommendations(lowestCategory: CategoryKey) {

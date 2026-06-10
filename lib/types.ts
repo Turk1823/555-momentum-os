@@ -1,10 +1,29 @@
 export type CategoryKey = "strategy" | "activation" | "cosell" | "economics" | "velocity";
 
+export type QuestionOption = {
+  label: string;
+  score: number;
+};
+
+export type DiagnosticResponseType = "agreement" | "anchored" | "binary";
+
 export type DiagnosticQuestion = {
   id: number;
   category: CategoryKey;
-  question: string;
+  statement: string;
+  responseType: DiagnosticResponseType;
+  options: QuestionOption[];
 };
+
+export type BenchmarkQuestionKey = "partnerRevenueShare" | "annualEcosystemRevenue";
+
+export type BenchmarkQuestion = {
+  key: BenchmarkQuestionKey;
+  label: string;
+  options: string[];
+};
+
+export type BenchmarkAnswers = Record<BenchmarkQuestionKey, string>;
 
 export type Category = {
   key: CategoryKey;
@@ -71,7 +90,8 @@ export type AppState = {
   intake: UserIntake;
   intakeComplete: boolean;
   assessmentId?: string;
-  scores: Record<number, number>;
+  scores: Record<number, number | null>;
+  benchmarkAnswers: BenchmarkAnswers;
   primaryConstraint: string;
   email: string;
   strategy: StrategySnapshot;

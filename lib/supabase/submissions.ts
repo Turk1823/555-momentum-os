@@ -1,4 +1,4 @@
-import type { CategoryKey, UserIntake } from "@/lib/types";
+import type { BenchmarkAnswers, CategoryKey, UserIntake } from "@/lib/types";
 
 export type AssessmentSubmission = {
   intake: UserIntake;
@@ -23,7 +23,8 @@ export type AssessmentSubmission = {
     name: string;
     score: number;
   }>;
-  scores: Record<number, number>;
+  scores: Record<number, number | null>;
+  benchmarkAnswers: BenchmarkAnswers;
   executiveSummary: string;
 };
 
