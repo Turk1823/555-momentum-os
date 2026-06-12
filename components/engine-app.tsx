@@ -945,10 +945,12 @@ function Landing({ onStart }: { onStart: () => void }) {
         <div className="mx-auto grid min-h-[88vh] max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
           <div className="max-w-3xl">
             <MomentumOSLogo className="mb-8 max-w-[260px] sm:max-w-[320px]" width={320} />
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.26em] text-[#17889a]">Premium ecosystem diagnostic</p>
-            <h1 className="text-balance text-5xl font-semibold tracking-normal text-navy sm:text-6xl">The 5/5/5 Ecosystem Revenue Engine</h1>
-            <p className="mt-6 max-w-2xl text-xl leading-8 text-slate-600">Diagnose ecosystem friction. Activate partners faster. Build repeatable partner-led revenue momentum.</p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="text-center">
+              <p className="mb-4 text-xs font-bold uppercase tracking-[0.26em] text-[#17889a]">Premium ecosystem diagnostic</p>
+              <h1 className="text-balance text-5xl font-semibold tracking-normal text-navy sm:text-6xl">The 5/5/5 Ecosystem Revenue Engine</h1>
+              <p className="mx-auto mt-6 max-w-2xl text-xl leading-8 text-slate-600">Diagnose ecosystem friction. Activate partners faster. Build repeatable partner-led revenue momentum.</p>
+            </div>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Button size="lg" onClick={onStart}>Start Ecosystem Diagnostic <ArrowRight size={18} /></Button>
               <Button size="lg" variant="secondary" onClick={() => document.getElementById("philosophy")?.scrollIntoView()}>Explore the model</Button>
             </div>
