@@ -952,7 +952,7 @@ function Landing({ onStart }: { onStart: () => void }) {
             </div>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Button size="lg" onClick={onStart}>Start Ecosystem Diagnostic <ArrowRight size={18} /></Button>
-              <Button size="lg" variant="secondary" onClick={() => document.getElementById("philosophy")?.scrollIntoView()}>Explore the model</Button>
+              <Button size="lg" onClick={() => document.getElementById("philosophy")?.scrollIntoView()}>Explore the model</Button>
             </div>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-soft">
