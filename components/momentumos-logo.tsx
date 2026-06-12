@@ -11,8 +11,8 @@ export function MomentumOSLogo({ className = "", width = 220 }: MomentumOSLogoPr
 
   return (
     <div
-      className={cn("relative inline-block shrink-0", className)}
-      style={{ width: `${width}px`, marginLeft: "-36px" }}
+      className={cn("relative block shrink-0 mx-auto", className)}
+      style={{ width: `${width}px` }}
     >
       <Image
         alt="MomentumOS"
