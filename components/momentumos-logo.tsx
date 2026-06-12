@@ -11,7 +11,7 @@ export function MomentumOSLogo({ className = "", width = 220 }: MomentumOSLogoPr
   return (
     <Image
       alt="MomentumOS"
-      className={className}
+      className={`-ml-1 ${className}`.trim()}
       height={height}
       priority
       src="/momentumos-logo.png"
