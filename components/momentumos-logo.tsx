@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 type MomentumOSLogoProps = {
   className?: string;
@@ -9,13 +10,18 @@ export function MomentumOSLogo({ className = "", width = 220 }: MomentumOSLogoPr
   const height = Math.round((width / 1920) * 450);
 
   return (
-    <Image
-      alt="MomentumOS"
-      className={`-ml-1 ${className}`.trim()}
-      height={height}
-      priority
-      src="/momentumos-logo.png"
-      width={width}
-    />
+    <div
+      className={cn("relative inline-block shrink-0", className)}
+      style={{ width: `${width}px`, marginLeft: "-12px" }}
+    >
+      <Image
+        alt="MomentumOS"
+        className="block h-auto w-full"
+        height={height}
+        priority
+        src="/momentumos-logo.png"
+        width={width}
+      />
+    </div>
   );
 }
