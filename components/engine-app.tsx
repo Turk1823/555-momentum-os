@@ -166,6 +166,114 @@ function getOptionLabel(question: BenchmarkQuestion, answers: BenchmarkAnswers) 
   return answers[question.key] || "Not provided";
 }
 
+function getRecommendationConfidence(respondentCount: number) {
+  if (respondentCount >= 4) return "High";
+  if (respondentCount >= 2) return "Medium";
+  return "Low";
+}
+
+function getConfidenceExplanation(respondentCount: number) {
+  if (respondentCount >= 4) return "This recommendation is currently based on four or more stakeholder assessments.";
+  if (respondentCount >= 2) return "This recommendation is currently based on a small group of stakeholder assessments.";
+  return "This recommendation is currently based on a single stakeholder assessment.";
+}
+
+function getRecommendationRationale(params: {
+  totalScore: number;
+  lowest: ReturnType<typeof getExtremes>["lowest"];
+  highest: ReturnType<typeof getExtremes>["highest"];
+  respondentCount: number;
+}) {
+  const { totalScore, lowest, highest, respondentCount } = params;
+  const benchmarkBand = getBenchmarkPositionLabel(totalScore);
+  const confidence = getRecommendationConfidence(respondentCount);
+  const velocityRisk = getRevenueVelocityRiskLabel(totalScore, lowest);
+  const benchmarkComparison = `The current benchmark preview places the organisation in the ${benchmarkBand} band, but ${lowest.shortName.toLowerCase()} remains the lowest internal capability`;
+
+  return {
+    confidence,
+    benchmarkBand,
+    recommendationSentence: `MomentumOS therefore recommends prioritising ${lowest.shortName.toLowerCase()} first while building from ${highest.shortName.toLowerCase()} as the strongest foundation for execution.`,
+    evidence: [
+      {
+        label: "Weakest Capability",
+        value: `${lowest.shortName} scored ${lowest.score}/20, making it the weakest current capability`
+      },
+      {
+        label: "Benchmark Position",
+        value: benchmarkComparison
+      },
+      {
+        label: "Revenue Risk",
+        value: `${lowest.shortName} is contributing to the current ${velocityRisk.toLowerCase()} revenue velocity risk profile`
+      },
+      {
+        label: "Strength to Build From",
+        value: `${highest.shortName} is the strongest current capability at ${highest.score}/20, giving the organisation a stronger foundation to build from`
+      },
+      {
+        label: "Evidence Base",
+        value: `Evidence is currently based on ${respondentCount} assessment${respondentCount === 1 ? "" : "s"} with a Momentum Score of ${totalScore}/100`
+      }
+    ],
+    explanation: getConfidenceExplanation(respondentCount)
+  };
+}
+
+function RecommendationRationaleSection({
+  mode,
+  respondentCount,
+  totalScore,
+  lowest,
+  highest
+}: {
+  mode: "preview" | "report";
+  respondentCount: number;
+  totalScore: number;
+  lowest: ReturnType<typeof getExtremes>["lowest"];
+  highest: ReturnType<typeof getExtremes>["highest"];
+}) {
+  const rationale = getRecommendationRationale({ totalScore, lowest, highest, respondentCount });
+  const title = mode === "preview" ? "Why MomentumOS Recommends This" : "Recommendation Rationale";
+  const description =
+    mode === "preview"
+      ? "A transparent explanation of the evidence behind the recommendation"
+      : "A richer explanation of the evidence used to prioritise the current recommendation";
+  const reportLead =
+    mode === "report"
+      ? `The current ${totalScore}/100 Momentum Score places the organisation in the ${rationale.benchmarkBand} band. ${lowest.shortName} is the clearest operating constraint, while ${highest.shortName} provides the strongest capability foundation for improvement.`
+      : null;
+
+  return (
+    <Card className={mode === "preview" ? "border-teal-100 bg-white" : undefined}>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {reportLead && (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm leading-6 text-slate-700">{reportLead}</p>
+          </div>
+        )}
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {rationale.evidence.map((item) => (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4" key={item.label}>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#17889a]">{item.label}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">{item.value}</p>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-lg border border-teal-100 bg-teal-50 p-4">
+          <p className="text-sm font-semibold text-teal-950">{rationale.recommendationSentence}</p>
+          <p className="mt-2 text-sm leading-6 text-teal-900">{rationale.explanation}</p>
+          <p className="mt-3 text-xs font-bold uppercase tracking-[0.14em] text-teal-800">Confidence: {rationale.confidence}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function cleanActionPlanText(value: string) {
   return value
     .replace(/\*\*/g, "")
@@ -1000,11 +1108,11 @@ function BenchmarkPreviewGate({
     setIsSubmitting(false);
   };
   const previewItems = [
-    { label: "Momentum Score", value: `${totalScore}/100`, text: "Your current ecosystem revenue maturity score." },
-    { label: "Benchmark Position", value: getBenchmarkPositionLabel(totalScore), text: "Directional maturity band from your 555 score." },
-    { label: "Primary Constraint", value: lowest.shortName, text: "The lowest-scoring capability limiting momentum." },
-    { label: "Revenue Velocity Risk", value: getRevenueVelocityRiskLabel(totalScore, lowest), text: "A directional signal based on score and bottleneck strength." },
-    { label: "Top Strength", value: highest.shortName, text: "The strongest capability in your current ecosystem profile." }
+    { label: "Momentum Score", value: `${totalScore}/100`, text: "Your current ecosystem revenue maturity score" },
+    { label: "Benchmark Position", value: getBenchmarkPositionLabel(totalScore), text: "Directional maturity band from your 555 score" },
+    { label: "Primary Constraint", value: lowest.shortName, text: "The lowest-scoring capability limiting momentum" },
+    { label: "Revenue Velocity Risk", value: getRevenueVelocityRiskLabel(totalScore, lowest), text: "A directional signal based on score and bottleneck strength" },
+    { label: "Top Strength", value: highest.shortName, text: "The strongest capability in your current ecosystem profile" }
   ];
 
   return (
@@ -1012,7 +1120,7 @@ function BenchmarkPreviewGate({
       <Card className="border-teal-100 bg-white">
         <CardHeader>
           <CardTitle>Your Ecosystem Revenue Benchmark Preview</CardTitle>
-          <CardDescription>Instant directional insight from your current 555 Momentum Assessment responses.</CardDescription>
+          <CardDescription>Instant directional insight from your current 555 Momentum Assessment responses</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-5">
           {previewItems.map((item) => (
@@ -1040,49 +1148,63 @@ function BenchmarkPreviewGate({
         </CardContent>
       </Card>
 
+      <RecommendationRationaleSection
+        mode="preview"
+        respondentCount={1}
+        totalScore={totalScore}
+        lowest={lowest}
+        highest={highest}
+      />
+
       <Card>
         <CardHeader>
-          <CardTitle>Unlock Your Full Executive Report</CardTitle>
-          <CardDescription>Submit your details to reveal the complete benchmark report and save your assessment.</CardDescription>
+          <CardTitle>Unlock the Full Executive Report</CardTitle>
+          <CardDescription>See the deeper executive view that sits behind this recommendation</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-lg border border-teal-100 bg-teal-50 p-4">
-            <p className="text-sm font-semibold text-teal-950">Your full report includes:</p>
-            <ul className="mt-3 grid gap-2 text-sm leading-6 text-teal-950">
-              {[
-                "Full benchmark breakdown",
-                "90-day action plan",
-                "Revenue velocity forecast",
-                "Executive recommendations",
-                "MomentumOS dashboard preview"
-              ].map((item) => (
-                <li className="flex gap-2" key={item}><Check className="mt-1 shrink-0" size={16} />{item}</li>
-              ))}
-            </ul>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {[
+              "Executive Briefing",
+              "90-Day Action Plan",
+              "Benchmark Analysis",
+              "Revenue Velocity Insights",
+              "Decision Intelligence Preview"
+            ].map((item) => (
+              <div className="rounded-lg border border-teal-100 bg-teal-50 px-4 py-3 text-sm font-medium text-teal-950" key={item}>
+                {item}
+              </div>
+            ))}
           </div>
-          <div className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Label>First name<Input value={intake.name} onChange={(event) => update("name", event.target.value)} placeholder="Alex" /></Label>
-              <Label>Work email<Input type="email" value={intake.email} onChange={(event) => update("email", event.target.value)} placeholder="alex@company.com" /></Label>
-              <Label>Company<Input value={intake.company} onChange={(event) => update("company", event.target.value)} placeholder="Company name" /></Label>
-              <Label>Role / title<Input value={intake.role} onChange={(event) => update("role", event.target.value)} placeholder="VP Partnerships" /></Label>
-            </div>
-            <p className="text-xs leading-5 text-slate-500">We&apos;ll send your results and may follow up with relevant MomentumOS updates. No spam.</p>
-            {error && <p className="rounded-md bg-rose-50 p-3 text-sm font-medium text-rose-700">{error}</p>}
-            {saveStatus.message && (
-              <p className={cn(
-                "whitespace-pre-wrap break-words rounded-md p-3 text-sm font-medium",
-                saveStatus.tone === "success" && "bg-teal-50 text-teal-800",
-                saveStatus.tone === "error" && "bg-rose-50 text-rose-700",
-                saveStatus.tone === "idle" && "bg-slate-50 text-slate-600"
-              )}>
-                {saveStatus.message}
-              </p>
-            )}
-            <Button size="lg" disabled={isSubmitting} onClick={submit}>
-              {isSubmitting ? "Saving..." : "Save Assessment to Record Results"} <ArrowRight size={18} />
-            </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Lead Capture Form</CardTitle>
+          <CardDescription>Submit your details to reveal the complete benchmark report and save your assessment</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Label>First name<Input value={intake.name} onChange={(event) => update("name", event.target.value)} placeholder="Alex" /></Label>
+            <Label>Work email<Input type="email" value={intake.email} onChange={(event) => update("email", event.target.value)} placeholder="alex@company.com" /></Label>
+            <Label>Company<Input value={intake.company} onChange={(event) => update("company", event.target.value)} placeholder="Company name" /></Label>
+            <Label>Role / title<Input value={intake.role} onChange={(event) => update("role", event.target.value)} placeholder="VP Partnerships" /></Label>
           </div>
+          <p className="text-xs leading-5 text-slate-500">We&apos;ll send your results and may follow up with relevant MomentumOS updates. No spam.</p>
+          {error && <p className="rounded-md bg-rose-50 p-3 text-sm font-medium text-rose-700">{error}</p>}
+          {saveStatus.message && (
+            <p className={cn(
+              "whitespace-pre-wrap break-words rounded-md p-3 text-sm font-medium",
+              saveStatus.tone === "success" && "bg-teal-50 text-teal-800",
+              saveStatus.tone === "error" && "bg-rose-50 text-rose-700",
+              saveStatus.tone === "idle" && "bg-slate-50 text-slate-600"
+            )}>
+              {saveStatus.message}
+            </p>
+          )}
+          <Button size="lg" disabled={isSubmitting} onClick={submit}>
+            {isSubmitting ? "Saving..." : "Save Assessment to Record Results"} <ArrowRight size={18} />
+          </Button>
         </CardContent>
       </Card>
     </div>
@@ -1170,6 +1292,13 @@ function ResultsDashboard(props: {
           </div>
         </CardContent>
       </Card>
+      <RecommendationRationaleSection
+        mode="report"
+        respondentCount={1}
+        totalScore={props.totalScore}
+        lowest={props.lowest}
+        highest={props.highest}
+      />
       <Card>
         <CardHeader>
           <CardTitle>Category Radar</CardTitle>
