@@ -823,15 +823,15 @@ export function EngineApp() {
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="grid gap-3">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 px-4 py-5 text-center sm:px-6 lg:px-8">
+          <div className="grid justify-items-center gap-3">
             <MomentumOSLogo className="max-w-[240px] sm:max-w-[280px]" width={280} />
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#17889a]">Executive ecosystem revenue diagnostic</p>
               <h1 className="text-2xl font-semibold tracking-normal text-navy">The 5/5/5 Ecosystem Revenue Engine</h1>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             {state.intakeComplete && (
               <>
                 <Button variant="secondary" onClick={copySummary}><ClipboardCopy size={16} /> Copy executive summary</Button>
@@ -1159,9 +1159,9 @@ function BenchmarkPreviewGate({
       <Card>
         <CardHeader>
           <CardTitle>Unlock the Full Executive Report</CardTitle>
-          <CardDescription>See the deeper executive view that sits behind this recommendation</CardDescription>
+          <CardDescription>Enter your details to save your assessment, record your results, and unlock the full MomentumOS executive report</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-4">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {[
               "Executive Briefing",
@@ -1175,15 +1175,6 @@ function BenchmarkPreviewGate({
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Lead Capture Form</CardTitle>
-          <CardDescription>Submit your details to reveal the complete benchmark report and save your assessment</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Label>First name<Input value={intake.name} onChange={(event) => update("name", event.target.value)} placeholder="Alex" /></Label>
             <Label>Work email<Input type="email" value={intake.email} onChange={(event) => update("email", event.target.value)} placeholder="alex@company.com" /></Label>
@@ -1203,7 +1194,7 @@ function BenchmarkPreviewGate({
             </p>
           )}
           <Button size="lg" disabled={isSubmitting} onClick={submit}>
-            {isSubmitting ? "Saving..." : "Save Assessment to Record Results"} <ArrowRight size={18} />
+            {isSubmitting ? "Saving..." : "Unlock Full Report"} <ArrowRight size={18} />
           </Button>
         </CardContent>
       </Card>
