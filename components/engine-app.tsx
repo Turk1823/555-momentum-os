@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
+  ArrowDown,
   BarChart3,
   BriefcaseBusiness,
   Check,
@@ -936,6 +937,7 @@ export function EngineApp() {
             totalScore,
             maturityLevel,
             primaryConstraint: state.primaryConstraint,
+            recommendedAction: getRecommendedActionTitle(lowest.key),
             strongestCapability: highest.name,
             weakestCapability: lowest.name,
             executiveSummary,
@@ -946,22 +948,20 @@ export function EngineApp() {
       });
 
       const data = (await response.json()) as {
-        status?: "success" | "coming_soon" | "error";
+        status?: "success" | "error";
         message?: string;
       };
-
-      if (data.status === "coming_soon") {
-        setEmailReportStatus({ tone: "idle", message: "Email delivery coming soon" });
-        return;
-      }
 
       if (!response.ok || data.status !== "success") {
         throw new Error(data.message || "Unable to email report. Please try again.");
       }
 
       setEmailReportStatus({ tone: "success", message: "Report emailed successfully" });
-    } catch {
-      setEmailReportStatus({ tone: "error", message: "Unable to email report. Please try again." });
+    } catch (error) {
+      setEmailReportStatus({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Unable to email report. Please try again."
+      });
     } finally {
       setIsEmailingReport(false);
     }
@@ -1535,8 +1535,12 @@ function ResultsDashboard(props: {
                 </div>
                 {index < array.length - 1 && (
                   <>
-                    <div className="text-center text-sm font-semibold text-teal-700 md:hidden">â†“</div>
-                    <div className="hidden text-center text-sm font-semibold text-teal-700 md:block md:px-2">â†’</div>
+                    <div className="flex justify-center md:hidden">
+                      <ArrowDown aria-hidden className="h-4 w-4 text-teal-700" />
+                    </div>
+                    <div className="hidden justify-center md:flex md:px-2">
+                      <ArrowRight aria-hidden className="h-4 w-4 text-teal-700" />
+                    </div>
                   </>
                 )}
               </div>

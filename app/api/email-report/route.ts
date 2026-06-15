@@ -9,6 +9,7 @@ type EmailReportRequest = {
     totalScore?: number;
     maturityLevel?: string;
     primaryConstraint?: string;
+    recommendedAction?: string;
     strongestCapability?: string;
     weakestCapability?: string;
     executiveSummary?: string;
@@ -31,8 +32,12 @@ function buildReportText(payload: NonNullable<EmailReportRequest["report"]>) {
     `Momentum Score: ${payload.totalScore || 0}/100`,
     `Maturity Level: ${payload.maturityLevel || "Not provided"}`,
     `Primary Constraint: ${payload.primaryConstraint || "Not provided"}`,
+    `Recommended Action: ${payload.recommendedAction || "Not provided"}`,
     `Strongest Capability: ${payload.strongestCapability || "Not provided"}`,
     `Weakest Capability: ${payload.weakestCapability || "Not provided"}`,
+    "",
+    "Intro",
+    "Thank you for completing the 555 Momentum Assessment. Your report is included below for easy review and sharing.",
     "",
     "Executive Summary",
     payload.executiveSummary || "Not provided",
@@ -56,7 +61,7 @@ export async function POST(request: Request) {
   const fromEmail = process.env.REPORT_FROM_EMAIL;
 
   if (!resendApiKey || !fromEmail) {
-    return NextResponse.json({ status: "coming_soon", message: "Email delivery coming soon" }, { status: 200 });
+    return NextResponse.json({ status: "error", message: "Email service is not configured" }, { status: 500 });
   }
 
   const text = buildReportText(body.report);
@@ -71,7 +76,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         from: fromEmail,
         to: [body.to],
-        subject: "Your MomentumOS Executive Report",
+        subject: "Your 555 Momentum Assessment Report",
         text
       })
     });
