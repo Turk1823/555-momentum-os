@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -346,8 +346,29 @@ function cleanActionPlanText(value: string) {
 
 function getDisplayText(value: string) {
   return cleanActionPlanText(value)
-    .replace(/^\s*[-*•]\s+/gm, "• ")
-    .replace(/^\s*\d+\.\s+/gm, "• ")
+    .replace(/^\s*[-*â€¢]\s+/gm, "â€¢ ")
+    .replace(/^\s*\d+\.\s+/gm, "â€¢ ")
+    .trim();
+}
+
+function stripLeadingLabel(value: string, labels: string[]) {
+  let result = value.trim();
+
+  for (const label of labels) {
+    const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    result = result.replace(new RegExp(`^${escapedLabel}\\s*:?\\s*`, "i"), "").trim();
+    result = result.replace(new RegExp(`^â€¢\\s*${escapedLabel}\\s*:?\\s*`, "i"), "â€¢ ").trim();
+  }
+
+  return result;
+}
+
+function cleanPriorityField(value: string, labelsToRemove: string[]) {
+  return stripLeadingLabel(getDisplayText(value), labelsToRemove)
+    .split("\n")
+    .map((line) => stripLeadingLabel(line, labelsToRemove))
+    .filter(Boolean)
+    .join("\n")
     .trim();
 }
 
@@ -407,11 +428,18 @@ function parsePriorityActions(section: string) {
     const lines = block
       .split("\n")
       .map((line) => cleanActionPlanText(line.replace(/^(?:Priority\s*)?(?:[1-3][.)]|Action\s*[1-3]|Priority Action\s*[1-3])\s*:?\s*/i, "")))
-      .filter(Boolean);
-    const titleLine = lines.find((line) => !/^(Impact level|Why it matters|Recommended next action)\s*:?/i.test(line)) || `Priority ${index + 1}`;
-    const impact = getFieldValue(block, "Impact level", ["Why it matters", "Recommended next action"]) || "High";
-    const whyItMatters = getFieldValue(block, "Why it matters", ["Recommended next action"]) || block;
-    const nextAction = getFieldValue(block, "Recommended next action", []) || "Prioritise this action in the next operating cycle.";
+      .map((line) => stripLeadingLabel(line, ["Impact level", "Why it matters", "Recommended next action", "Priority title"]))
+      .filter((line) => Boolean(line) && !/^(high|medium|low)$/i.test(line));
+    const titleLine = lines.find((line) => !/^â€¢\s*/i.test(line)) || `Priority ${index + 1}`;
+    const impact = cleanPriorityField(getFieldValue(block, "Impact level", ["Why it matters", "Recommended next action"]) || "High", ["Impact level"]);
+    const whyItMatters = cleanPriorityField(
+      getFieldValue(block, "Why it matters", ["Recommended next action"]) || block,
+      ["Why it matters", "Recommended next action", "Impact level", "Priority title"]
+    );
+    const nextAction = cleanPriorityField(
+      getFieldValue(block, "Recommended next action", []) || "Prioritise this action in the next operating cycle.",
+      ["Recommended next action", "Why it matters", "Impact level", "Priority title"]
+    );
 
     return {
       title: titleLine.replace(/^Priority title\s*:\s*/i, ""),
@@ -424,9 +452,9 @@ function parsePriorityActions(section: string) {
 
 function getTimelineSection(section: string, label: "30" | "60" | "90") {
   const patterns = {
-    "30": "(?:30[- ]?day|days?\\s*1\\s*[-–]\\s*30)",
-    "60": "(?:60[- ]?day|days?\\s*31\\s*[-–]\\s*60)",
-    "90": "(?:90[- ]?day|days?\\s*61\\s*[-–]\\s*90)"
+    "30": "(?:30[- ]?day|days?\\s*1\\s*[-â€“]\\s*30)",
+    "60": "(?:60[- ]?day|days?\\s*31\\s*[-â€“]\\s*60)",
+    "90": "(?:90[- ]?day|days?\\s*61\\s*[-â€“]\\s*90)"
   };
   const startMatch = section.match(new RegExp(`(?:^|\\n)\\s*(?:#+\\s*)?(?:[-*]\\s*)?${patterns[label]}[^\\n]*\\n?`, "i"));
 
@@ -519,18 +547,22 @@ function ActionPlanOutput({
         <p className="text-sm font-semibold text-teal-950">Top 3 Priority Actions</p>
         <div className="grid gap-3 lg:grid-cols-3">
           {parsed.priorityActions.map((priority, index) => (
-            <div key={`${priority.title}-${index}`} className="rounded-lg border border-slate-200 bg-white p-4">
-              <div className="mb-3 flex items-start justify-between gap-3">
+            <div key={`${priority.title}-${index}`} className="grid h-full gap-4 rounded-lg border border-slate-200 bg-white p-4">
+              <div className="grid gap-3">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Priority {index + 1}</p>
                 <h3 className="text-sm font-semibold leading-5 text-navy">{priority.title}</h3>
-                <span className="shrink-0 rounded-full bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700">{priority.impact}</span>
               </div>
               <div className="grid gap-3">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Recommended next action</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Priority Level</p>
+                  <p className="mt-2 text-sm font-semibold text-teal-700">{priority.impact}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Recommended Next Action</p>
                   <TextBlock text={priority.nextAction} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Why MomentumOS recommends this</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Why MomentumOS Recommends This</p>
                   <TextBlock text={priority.whyItMatters} />
                 </div>
               </div>
@@ -1495,14 +1527,17 @@ function ResultsDashboard(props: {
           <CardDescription>A simple view of the operating chain that shapes partner-led growth</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-[repeat(5,minmax(0,1fr))]">
             {["Partner Investment", "Partner Activation", "Partner Productivity", "Revenue Momentum", "Forecast Confidence"].map((step, index, array) => (
               <div key={step} className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-center text-sm font-semibold text-slate-800">
                   {step}
                 </div>
                 {index < array.length - 1 && (
-                  <div className="text-center text-sm font-semibold text-teal-700 md:px-2">↓</div>
+                  <>
+                    <div className="text-center text-sm font-semibold text-teal-700 md:hidden">â†“</div>
+                    <div className="hidden text-center text-sm font-semibold text-teal-700 md:block md:px-2">â†’</div>
+                  </>
                 )}
               </div>
             ))}
@@ -1849,3 +1884,5 @@ function MetricPill({ label, value }: { label: string; value: string }) {
 function MetricCard({ title, value }: { title: string; value: string }) {
   return <Card><CardHeader><CardDescription>{title}</CardDescription><CardTitle>{value}</CardTitle></CardHeader></Card>;
 }
+
+
