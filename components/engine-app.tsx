@@ -178,6 +178,18 @@ function getConfidenceExplanation(respondentCount: number) {
   return "This recommendation is currently based on a single stakeholder assessment.";
 }
 
+function getRecommendedActionTitle(lowestKey: string) {
+  const actionTitles: Record<string, string> = {
+    strategy: "Align ecosystem strategy and executive revenue accountability",
+    activation: "Strengthen partner activation measurement and governance",
+    cosell: "Build clearer co-sell workflow ownership and pipeline governance",
+    economics: "Improve partner revenue attribution and economic visibility",
+    velocity: "Tighten proof loops and repeatable partner revenue execution"
+  };
+
+  return actionTitles[lowestKey] || "Prioritise the clearest ecosystem revenue constraint";
+}
+
 function getRecommendationRationale(params: {
   totalScore: number;
   lowest: ReturnType<typeof getExtremes>["lowest"];
@@ -193,7 +205,8 @@ function getRecommendationRationale(params: {
   return {
     confidence,
     benchmarkBand,
-    recommendationSentence: `MomentumOS therefore recommends prioritising ${lowest.shortName.toLowerCase()} first while building from ${highest.shortName.toLowerCase()} as the strongest foundation for execution.`,
+    recommendationTitle: getRecommendedActionTitle(lowest.key),
+    recommendationSentence: `${getRecommendedActionTitle(lowest.key)} while building from ${highest.shortName.toLowerCase()} as the strongest foundation for execution.`,
     evidence: [
       {
         label: "Weakest Capability",
@@ -251,6 +264,10 @@ function RecommendationRationaleSection({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
+        <div className="rounded-lg border border-teal-100 bg-teal-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-800">Recommended Action</p>
+          <p className="mt-2 text-sm font-semibold text-teal-950">{rationale.recommendationTitle}</p>
+        </div>
         {reportLead && (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm leading-6 text-slate-700">{reportLead}</p>
@@ -265,7 +282,7 @@ function RecommendationRationaleSection({
           ))}
         </div>
         <div className="rounded-lg border border-teal-100 bg-teal-50 p-4">
-          <p className="text-sm font-semibold text-teal-950">{rationale.recommendationSentence}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-800">Why MomentumOS Recommends This</p>
           <p className="mt-2 text-sm leading-6 text-teal-900">{rationale.explanation}</p>
           <p className="mt-3 text-xs font-bold uppercase tracking-[0.14em] text-teal-800">Confidence: {rationale.confidence}</p>
         </div>
@@ -274,11 +291,30 @@ function RecommendationRationaleSection({
   );
 }
 
-function cleanActionPlanText(value: string) {
+function normaliseGeneratedText(value: string) {
   return value
+    .replace(/\r/g, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>\s*<p>/gi, "\n")
+    .replace(/<\/?[^>]+>/gi, "")
+    .replace(/^\s*\|+\s*([^|\n]+?)\s*\|+\s*$/gm, "$1")
+    .replace(/^\s*\|[-:\s|]+\|?\s*$/gm, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\u00a0/g, " ")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+function cleanActionPlanText(value: string) {
+  return normaliseGeneratedText(value)
     .replace(/\*\*/g, "")
     .replace(/^#+\s*/gm, "")
-    .replace(/^\s*[-*]\s*/gm, "")
+    .trim();
+}
+
+function getDisplayText(value: string) {
+  return cleanActionPlanText(value)
+    .replace(/^\s*[-*•]\s+/gm, "• ")
+    .replace(/^\s*\d+\.\s+/gm, "• ")
     .trim();
 }
 
@@ -390,7 +426,7 @@ function parseActionPlan(actionPlan: string) {
 }
 
 function TextBlock({ text }: { text: string }) {
-  const lines = cleanActionPlanText(text)
+  const lines = getDisplayText(text)
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
@@ -425,16 +461,21 @@ function ActionPlanOutput({
 }) {
   const parsed = parseActionPlan(actionPlan);
   const timelineItems = [
-    { title: "30-Day Recommendations", text: parsed.timeline.thirty },
-    { title: "60-Day Recommendations", text: parsed.timeline.sixty },
-    { title: "90-Day Recommendations", text: parsed.timeline.ninety }
+    { title: "30 Days", text: parsed.timeline.thirty },
+    { title: "60 Days", text: parsed.timeline.sixty },
+    { title: "90 Days", text: parsed.timeline.ninety }
   ];
   const hasTimeline = timelineItems.some((item) => item.text);
+  const recommendedAction = `Focus the next operating cycle on ${weakestCategory.toLowerCase()} to reduce ${primaryConstraint.toLowerCase()} and build from ${strongestCategory.toLowerCase()}.`;
 
   return (
     <div className="grid gap-4">
       <div className="rounded-lg border border-teal-100 bg-white p-4">
         <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Executive Summary</p>
+        <div className="mb-4 rounded-lg border border-teal-100 bg-teal-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-800">Recommended Action</p>
+          <p className="mt-2 text-sm font-semibold text-teal-950">{recommendedAction}</p>
+        </div>
         <TextBlock text={parsed.executiveSummary} />
       </div>
 
@@ -449,12 +490,12 @@ function ActionPlanOutput({
               </div>
               <div className="grid gap-3">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Why it matters</p>
-                  <TextBlock text={priority.whyItMatters} />
-                </div>
-                <div>
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Recommended next action</p>
                   <TextBlock text={priority.nextAction} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Why MomentumOS recommends this</p>
+                  <TextBlock text={priority.whyItMatters} />
                 </div>
               </div>
             </div>
@@ -637,6 +678,11 @@ export function EngineApp() {
     message: ""
   });
   const [actionPlan, setActionPlan] = useState("");
+  const [emailReportStatus, setEmailReportStatus] = useState<{ tone: "idle" | "success" | "error"; message: string }>({
+    tone: "idle",
+    message: ""
+  });
+  const [isEmailingReport, setIsEmailingReport] = useState(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("555-engine-state");
@@ -798,6 +844,61 @@ export function EngineApp() {
     window.print();
   };
 
+  const emailReport = async () => {
+    if (!state.intake.email.trim()) {
+      setEmailReportStatus({ tone: "error", message: "Unable to email report. Please try again." });
+      return;
+    }
+
+    setIsEmailingReport(true);
+    setEmailReportStatus({ tone: "idle", message: "" });
+
+    try {
+      const response = await fetch("/api/email-report", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          to: state.intake.email,
+          report: {
+            company: state.intake.company,
+            name: state.intake.name,
+            role: state.intake.role,
+            totalScore,
+            maturityLevel,
+            primaryConstraint: state.primaryConstraint,
+            strongestCapability: highest.name,
+            weakestCapability: lowest.name,
+            executiveSummary,
+            benchmarkAnswers: state.benchmarkAnswers,
+            actionPlan
+          }
+        })
+      });
+
+      const data = (await response.json()) as {
+        status?: "success" | "coming_soon" | "error";
+        message?: string;
+      };
+
+      if (data.status === "coming_soon") {
+        setEmailReportStatus({ tone: "idle", message: "Email delivery coming soon" });
+        return;
+      }
+
+      if (!response.ok || data.status !== "success") {
+        throw new Error(data.message || "Unable to email report. Please try again.");
+      }
+
+      setEmailReportStatus({ tone: "success", message: "Report emailed successfully" });
+    } catch {
+      setEmailReportStatus({ tone: "error", message: "Unable to email report. Please try again." });
+    } finally {
+      setIsEmailingReport(false);
+    }
+  };
+
   const copySummary = async () => {
     await navigator.clipboard.writeText(executiveSummary);
   };
@@ -835,11 +936,28 @@ export function EngineApp() {
             {state.intakeComplete && (
               <>
                 <Button variant="secondary" onClick={copySummary}><ClipboardCopy size={16} /> Copy executive summary</Button>
-                <Button variant="secondary" onClick={exportPdf}><Download size={16} /> Download report</Button>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button variant="secondary" onClick={exportPdf}><Download size={16} /> Download report</Button>
+                  <Button variant="secondary" disabled={isEmailingReport} onClick={emailReport}>
+                    <Mail size={16} /> {isEmailingReport ? "Emailing..." : "Email report"}
+                  </Button>
+                </div>
                 <Button onClick={() => window.open("mailto:info@arysconsultants.com?subject=Book ecosystem review", "_blank")}><Mail size={16} /> Book ecosystem review</Button>
               </>
             )}
           </div>
+          {state.intakeComplete && emailReportStatus.message && (
+            <p
+              className={cn(
+                "whitespace-pre-wrap break-words rounded-md px-3 py-2 text-sm font-medium",
+                emailReportStatus.tone === "success" && "bg-teal-50 text-teal-800",
+                emailReportStatus.tone === "error" && "bg-rose-50 text-rose-700",
+                emailReportStatus.tone === "idle" && "bg-slate-50 text-slate-600"
+              )}
+            >
+              {emailReportStatus.message}
+            </p>
+          )}
         </div>
       </header>
 
@@ -1226,6 +1344,7 @@ function ResultsDashboard(props: {
   const canGenerateActionPlan = props.saveStatus.tone === "success";
   const isGeneratingActionPlan = props.actionPlanStatus.tone === "idle" && Boolean(props.actionPlanStatus.message);
   const revenueOpportunity = getRevenueOpportunity(props.totalScore, props.lowest);
+  const recommendedActionTitle = getRecommendedActionTitle(props.lowest.key);
 
   return (
     <div className="grid gap-6">
@@ -1313,6 +1432,10 @@ function ResultsDashboard(props: {
           <CardDescription>Capture the diagnostic and route follow-up into a review workflow.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
+          <div className="rounded-lg border border-teal-100 bg-teal-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-800">Recommended Action</p>
+            <p className="mt-2 text-sm font-semibold text-teal-950">{recommendedActionTitle}</p>
+          </div>
           <p className="rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-700">{props.executiveSummary}</p>
           <div className="grid gap-3 md:grid-cols-2">
             <Label>Primary ecosystem constraint<Select value={props.primaryConstraint} onChange={(event) => props.setPrimaryConstraint(event.target.value)}>{constraints.map((constraint) => <option key={constraint}>{constraint}</option>)}</Select></Label>
