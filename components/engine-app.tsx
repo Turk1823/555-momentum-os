@@ -116,6 +116,39 @@ const modules = [
 
 type ModuleId = (typeof modules)[number]["id"];
 
+const revenueMomentumDrivers = [
+  "Partner Investment",
+  "Partner Activation",
+  "Partner Economics",
+  "Executive Alignment",
+  "Co-Sell Execution",
+  "Governance",
+  "Ecosystem Coverage"
+];
+
+const questionDriverMap: Record<number, string> = {
+  1: "Executive Alignment",
+  2: "Governance",
+  3: "Governance",
+  4: "Executive Alignment",
+  5: "Partner Activation",
+  6: "Partner Activation",
+  7: "Governance",
+  8: "Partner Activation",
+  9: "Co-Sell Execution",
+  10: "Governance",
+  11: "Co-Sell Execution",
+  12: "Co-Sell Execution",
+  13: "Partner Economics",
+  14: "Partner Economics",
+  15: "Partner Economics",
+  16: "Partner Investment",
+  17: "Ecosystem Coverage",
+  18: "Governance",
+  19: "Partner Activation",
+  20: "Executive Alignment"
+};
+
 function getRevenueOpportunity(totalScore: number, lowest: ReturnType<typeof getExtremes>["lowest"]) {
   if (totalScore <= 40) {
     return {
@@ -180,11 +213,11 @@ function getConfidenceExplanation(respondentCount: number) {
 
 function getRecommendedActionTitle(lowestKey: string) {
   const actionTitles: Record<string, string> = {
-    strategy: "Align ecosystem strategy and executive revenue accountability",
-    activation: "Strengthen partner activation measurement and governance",
-    cosell: "Build clearer co-sell workflow ownership and pipeline governance",
-    economics: "Improve partner revenue attribution and economic visibility",
-    velocity: "Tighten proof loops and repeatable partner revenue execution"
+    strategy: "Strengthen executive alignment to improve revenue momentum",
+    activation: "Increase partner activation to accelerate revenue momentum",
+    cosell: "Strengthen co-sell execution to improve revenue momentum",
+    economics: "Improve partner economics to increase revenue momentum",
+    velocity: "Strengthen ecosystem velocity to accelerate revenue momentum"
   };
 
   return actionTitles[lowestKey] || "Prioritise the clearest ecosystem revenue constraint";
@@ -472,6 +505,9 @@ function ActionPlanOutput({
     <div className="grid gap-4">
       <div className="rounded-lg border border-teal-100 bg-white p-4">
         <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Executive Summary</p>
+        <p className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+          Revenue momentum reflects the combined impact of partner investment, activation, economics, governance, alignment, and execution.
+        </p>
         <div className="mb-4 rounded-lg border border-teal-100 bg-teal-50 p-4">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-800">Recommended Action</p>
           <p className="mt-2 text-sm font-semibold text-teal-950">{recommendedAction}</p>
@@ -1228,7 +1264,7 @@ function BenchmarkPreviewGate({
     setIsSubmitting(false);
   };
   const previewItems = [
-    { label: "Momentum Score", value: `${totalScore}/100`, text: "Your current ecosystem revenue maturity score" },
+    { label: "Momentum Score", value: `${totalScore}/100`, text: "Measures the strength of the operating conditions that drive partner-led revenue acceleration" },
     { label: "Benchmark Position", value: getBenchmarkPositionLabel(totalScore), text: "Directional maturity band from your 555 score" },
     { label: "Primary Constraint", value: lowest.shortName, text: "The lowest-scoring capability limiting momentum" },
     { label: "Revenue Velocity Risk", value: getRevenueVelocityRiskLabel(totalScore, lowest), text: "A directional signal based on score and bottleneck strength" },
@@ -1364,12 +1400,33 @@ function ResultsDashboard(props: {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card><CardHeader><CardDescription>Overall maturity</CardDescription><CardTitle className="text-3xl">{props.totalScore}/100</CardTitle></CardHeader></Card>
-        <Card><CardHeader><CardDescription>Maturity level</CardDescription><CardTitle className="text-teal-700">{props.maturityLevel}</CardTitle></CardHeader></Card>
-        <Card><CardHeader><CardDescription>Biggest constraint</CardDescription><CardTitle>{props.lowest.shortName}</CardTitle></CardHeader></Card>
-        <Card><CardHeader><CardDescription>Strongest capability</CardDescription><CardTitle>{props.highest.shortName}</CardTitle></CardHeader></Card>
-      </div>
+      <Card className="border-teal-100 bg-white">
+        <CardHeader>
+          <CardDescription>Momentum Score</CardDescription>
+          <CardTitle className="text-4xl">{props.totalScore}/100</CardTitle>
+          <p className="text-xs leading-5 text-slate-500">Measures the strength of the operating conditions required to accelerate partner-led revenue.</p>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Maturity Level</p>
+              <p className="mt-2 text-base font-semibold text-teal-700">{props.maturityLevel}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Strongest Driver</p>
+              <p className="mt-2 text-base font-semibold text-navy">{props.highest.shortName}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Weakest Driver</p>
+              <p className="mt-2 text-base font-semibold text-navy">{props.lowest.shortName}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Primary Constraint</p>
+              <p className="mt-2 text-base font-semibold text-navy">{props.primaryConstraint}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Ecosystem revenue benchmarks</CardTitle>
@@ -1413,8 +1470,49 @@ function ResultsDashboard(props: {
       />
       <Card>
         <CardHeader>
-          <CardTitle>Category Radar</CardTitle>
-          <CardDescription>Scores are shown out of 20 for each ecosystem capability.</CardDescription>
+          <CardTitle>What Drives Revenue Momentum?</CardTitle>
+          <CardDescription>Revenue momentum is not created by partner count alone</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <p className="text-sm leading-6 text-slate-700">
+            It is influenced by the combined effect of partner investment, partner activation, partner economics, executive alignment, co-sell execution, governance, and ecosystem coverage.
+          </p>
+          <p className="text-sm leading-6 text-slate-700">
+            The analysis below highlights which drivers are accelerating growth and which may be limiting ecosystem performance.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {revenueMomentumDrivers.map((driver) => (
+              <div key={driver} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+                {driver}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>How Revenue Momentum Is Created</CardTitle>
+          <CardDescription>A simple view of the operating chain that shapes partner-led growth</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-5">
+            {["Partner Investment", "Partner Activation", "Partner Productivity", "Revenue Momentum", "Forecast Confidence"].map((step, index, array) => (
+              <div key={step} className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-center text-sm font-semibold text-slate-800">
+                  {step}
+                </div>
+                {index < array.length - 1 && (
+                  <div className="text-center text-sm font-semibold text-teal-700 md:px-2">↓</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Momentum Driver Analysis</CardTitle>
+          <CardDescription>Scores are shown out of 20 for each ecosystem capability that shapes revenue momentum.</CardDescription>
         </CardHeader>
         <CardContent className="h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -1432,6 +1530,9 @@ function ResultsDashboard(props: {
           <CardDescription>Capture the diagnostic and route follow-up into a review workflow.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
+          <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+            Revenue momentum reflects the combined impact of partner investment, activation, economics, governance, alignment, and execution.
+          </p>
           <div className="rounded-lg border border-teal-100 bg-teal-50 p-4">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-800">Recommended Action</p>
             <p className="mt-2 text-sm font-semibold text-teal-950">{recommendedActionTitle}</p>
@@ -1534,12 +1635,31 @@ function Diagnostic({
             </div>
           </div>
         </div>
+        <div className="rounded-lg border border-teal-100 bg-teal-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-800">What Revenue Momentum Measures</p>
+          <p className="mt-2 text-sm leading-6 text-teal-950">
+            Revenue Momentum is the rate at which partner-led revenue is accelerating or decelerating.
+          </p>
+          <p className="mt-2 text-sm leading-6 text-teal-900">
+            This assessment identifies which of these drivers are helping or limiting ecosystem revenue growth.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {revenueMomentumDrivers.map((driver) => (
+              <div key={driver} className="rounded-lg border border-teal-200 bg-white/80 px-3 py-2 text-sm font-medium text-teal-950">
+                {driver}
+              </div>
+            ))}
+          </div>
+        </div>
         {questions.map((question, index) => (
           <div key={question.id} className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#17889a]">
-                  Assessment statement {index + 1} of {questions.length}
+                  Question {index + 1} of {questions.length}
+                </p>
+                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Momentum Driver Being Measured: {questionDriverMap[question.id] || "Revenue Momentum"}
                 </p>
                 <p className="mt-2 text-base font-semibold leading-7 text-navy">{question.statement}</p>
               </div>

@@ -236,29 +236,29 @@ export const constraints = [
 
 export const recommendationMap: Record<CategoryKey, string[]> = {
   strategy: [
-    "Create an executive ecosystem narrative tied to revenue accountability.",
-    "Define partner-led GTM objectives and leadership-level scorecards.",
-    "Integrate ecosystem activities into sales, marketing, and customer success execution."
+    "Strengthen executive alignment to improve revenue momentum through clearer ecosystem revenue accountability.",
+    "Define partner-led GTM objectives and leadership-level scorecards to improve revenue momentum.",
+    "Integrate ecosystem activities into sales, marketing, and customer success execution to increase revenue momentum."
   ],
   activation: [
-    "Run a 45-day activation sprint for the highest-fit partners.",
-    "Build first-deal playbooks with positioning, account maps, and co-sell support.",
-    "Prioritise depth over breadth by concentrating resources on revenue-ready partners."
+    "Increase partner activation to accelerate revenue momentum through a focused 45-day sprint.",
+    "Build first-deal playbooks with positioning, account maps, and co-sell support to improve revenue momentum.",
+    "Prioritise depth over breadth by concentrating resources on revenue-ready partners to accelerate revenue momentum."
   ],
   cosell: [
-    "Establish shared pipeline workflows with clear sales and partner ownership.",
-    "Create CRM visibility for co-sell opportunities and partner influence.",
-    "Introduce co-sell governance around deal reviews, next actions, and escalation paths."
+    "Strengthen co-sell execution to improve revenue momentum through clearer pipeline ownership.",
+    "Create CRM visibility for co-sell opportunities and partner influence to increase revenue momentum.",
+    "Introduce co-sell governance around deal reviews, next actions, and escalation paths to improve revenue momentum."
   ],
   economics: [
-    "Create an attribution model for sourced, influenced, and expanded revenue.",
-    "Analyse partner ROI and tier partners by economic contribution.",
-    "Prioritise ecosystem resources toward the partners and motions with the highest return."
+    "Improve partner economics to increase revenue momentum with clearer sourced, influenced, and expanded revenue attribution.",
+    "Analyse partner ROI and tier partners by economic contribution to improve revenue momentum.",
+    "Prioritise ecosystem resources toward the partners and motions with the highest return to strengthen revenue momentum."
   ],
   velocity: [
-    "Turn wins into proof loops through case studies and referral plays.",
-    "Build repeatable partner plays that can be reused across segments.",
-    "Create a flywheel rhythm for activate, close, prove, attract, and repeat."
+    "Strengthen ecosystem velocity to accelerate revenue momentum through proof loops and case studies.",
+    "Build repeatable partner plays that can be reused across segments to improve revenue momentum.",
+    "Create a flywheel rhythm for activate, close, prove, attract, and repeat to accelerate revenue momentum."
   ]
 };
 
