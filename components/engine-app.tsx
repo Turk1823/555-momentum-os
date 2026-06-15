@@ -145,7 +145,7 @@ function getBenchmarkPositionLabel(totalScore: number) {
   if (totalScore >= 61) return "Revenue Ecosystem";
   if (totalScore >= 41) return "Structured Ecosystem";
   if (totalScore >= 21) return "Emerging Ecosystem";
-  return "Reactive Ecosystem";
+  return "Emerging Ecosystem";
 }
 
 function getRevenueVelocityRiskLabel(totalScore: number, lowest: ReturnType<typeof getExtremes>["lowest"]) {

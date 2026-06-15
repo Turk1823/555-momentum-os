@@ -14,7 +14,7 @@ export function getTotalScore(scores: Record<number, number | null>) {
 }
 
 export function getMaturityLevel(score: number) {
-  if (score <= 20) return "Reactive Ecosystem";
+  if (score <= 20) return "Emerging Ecosystem";
   if (score <= 40) return "Emerging Ecosystem";
   if (score <= 60) return "Structured Ecosystem";
   if (score <= 80) return "Revenue Ecosystem";

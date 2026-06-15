@@ -77,9 +77,9 @@ export const questions: DiagnosticQuestion[] = [
     responseType: "anchored",
     options: [
       { label: "Less than 10%", score: 1 },
-      { label: "10–25%", score: 2 },
-      { label: "26–40%", score: 3 },
-      { label: "41–60%", score: 4 },
+      { label: "10-25%", score: 2 },
+      { label: "26-40%", score: 3 },
+      { label: "41-60%", score: 4 },
       { label: "More than 60%", score: 5 }
     ]
   },
@@ -89,10 +89,10 @@ export const questions: DiagnosticQuestion[] = [
     statement: "How long does it typically take for a newly recruited partner to become revenue-active",
     responseType: "anchored",
     options: [
-      { label: "180+ days", score: 1 },
-      { label: "120–180 days", score: 2 },
-      { label: "90–120 days", score: 3 },
-      { label: "60–90 days", score: 4 },
+      { label: "180+ Days or Never", score: 1 },
+      { label: "120-180 days", score: 2 },
+      { label: "90-120 days", score: 3 },
+      { label: "60-90 days", score: 4 },
       { label: "Less than 60 days", score: 5 }
     ]
   },
@@ -206,17 +206,17 @@ export const benchmarkQuestions: BenchmarkQuestion[] = [
   {
     key: "partnerRevenueShare",
     label: "What percentage of company revenue is influenced by partners today",
-    options: ["Less than 10%", "10–25%", "26–50%", "51–75%", "75%+"]
+    options: ["0%", "<1%", "1-5%", "5-10%", "10-20%", "20-40%", "40%+"]
   },
   {
     key: "annualEcosystemRevenue",
     label: "Approximate annual ecosystem-influenced revenue",
-    options: ["Less than $100k", "$100k–$1m", "$1m–$10m", "$10m–$50m", "$50m+"]
+    options: ["£0", "<£10k", "£10k-£50k", "£50k-£250k", "£250k-£1m", "£1m-£10m", "£10m+"]
   }
 ];
 
 export const scoreLabels = {
-  1: "Reactive / Non-operational",
+  1: "Emerging / Early-stage",
   2: "Emerging",
   3: "Structured",
   4: "Operational",
