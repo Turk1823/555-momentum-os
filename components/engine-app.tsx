@@ -1003,10 +1003,10 @@ export function EngineApp() {
           <div className="flex flex-wrap justify-center gap-2">
             {state.intakeComplete && (
               <>
-                <Button variant="secondary" onClick={copySummary}><ClipboardCopy size={16} /> Copy executive summary</Button>
+                <Button onClick={copySummary}><ClipboardCopy size={16} /> Copy executive summary</Button>
                 <div className="flex flex-wrap justify-center gap-2">
-                  <Button variant="secondary" onClick={exportPdf}><Download size={16} /> Download report</Button>
-                  <Button variant="secondary" disabled={isEmailingReport} onClick={emailReport}>
+                  <Button onClick={exportPdf}><Download size={16} /> Download report</Button>
+                  <Button disabled={isEmailingReport} onClick={emailReport}>
                     <Mail size={16} /> {isEmailingReport ? "Emailing..." : "Email report"}
                   </Button>
                 </div>
