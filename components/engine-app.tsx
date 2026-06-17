@@ -212,6 +212,14 @@ function getConfidenceExplanation(respondentCount: number) {
   return "This recommendation is currently based on a single stakeholder assessment.";
 }
 
+function getAssessmentConfidenceEvidence(respondentCount: number) {
+  return [
+    `${respondentCount} stakeholder response${respondentCount === 1 ? "" : "s"}`,
+    respondentCount >= 2 ? "Team alignment data is beginning to form" : "No team alignment data yet",
+    "No historical assessment trend yet"
+  ];
+}
+
 function getRecommendedActionTitle(lowestKey: string) {
   const actionTitles: Record<string, string> = {
     strategy: "Strengthen executive alignment to improve revenue momentum",
@@ -318,7 +326,18 @@ function RecommendationRationaleSection({
         <div className="rounded-lg border border-teal-100 bg-teal-50 p-4">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-800">Why MomentumOS Recommends This</p>
           <p className="mt-2 text-sm leading-6 text-teal-900">{rationale.explanation}</p>
-          <p className="mt-3 text-xs font-bold uppercase tracking-[0.14em] text-teal-800">Confidence: {rationale.confidence}</p>
+          <div className="mt-4 rounded-lg border border-teal-200 bg-white/80 p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-teal-800">Assessment Confidence: {rationale.confidence}</p>
+            <p className="mt-2 text-sm font-medium text-teal-950">Based on:</p>
+            <div className="mt-2 grid gap-2 text-sm leading-6 text-teal-900">
+              {getAssessmentConfidenceEvidence(respondentCount).map((item) => (
+                <p key={item}>• {item}</p>
+              ))}
+            </div>
+            <p className="mt-3 text-sm leading-6 text-teal-900">
+              Confidence increases as additional stakeholders complete the assessment and more evidence is added over time.
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -1478,18 +1497,32 @@ function ResultsDashboard(props: {
           <CardTitle>Estimated Revenue Opportunity</CardTitle>
           <CardDescription>This is a directional estimate based on your ecosystem maturity profile, not a financial forecast.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-[0.8fr_1fr_1fr]">
-          <div className="rounded-lg bg-teal-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Opportunity range</p>
-            <p className="mt-2 text-2xl font-semibold text-navy">{revenueOpportunity.range}</p>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-4 lg:grid-cols-[0.8fr_1fr_1fr]">
+            <div className="rounded-lg bg-teal-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Opportunity range</p>
+              <p className="mt-2 text-2xl font-semibold text-navy">{revenueOpportunity.range}</p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Key assumption</p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">{revenueOpportunity.assumption}</p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Assessment signal</p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">{revenueOpportunity.reason}</p>
+            </div>
           </div>
-          <div className="rounded-lg bg-slate-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Key assumption</p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">{revenueOpportunity.assumption}</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Reason this opportunity exists</p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">{revenueOpportunity.reason}</p>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Why This Opportunity Exists</p>
+            <div className="mt-3 grid gap-2 text-sm leading-6 text-slate-700">
+              <p>• Current ecosystem maturity level</p>
+              <p>• Primary constraint identified in the assessment</p>
+              <p>• Activation uplift potential</p>
+              <p>• Improved partner productivity</p>
+              <p>• Faster time-to-first-revenue</p>
+              <p>• Greater repeatability across revenue-ready partners</p>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-600">This is a directional planning estimate, not a financial forecast.</p>
           </div>
         </CardContent>
       </Card>
